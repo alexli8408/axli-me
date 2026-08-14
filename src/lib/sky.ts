@@ -27,7 +27,7 @@ export type Star = {
 
 export type Constellation = {
   id: string;
-  /** Constellation name, drawn beside the shape. */
+  /** Section name, drawn beside the shape. */
   label: string;
   kicker: string;
   /** Heading on the overlay card. */
@@ -43,7 +43,7 @@ export type Constellation = {
 export const constellations: Constellation[] = [
   {
     id: "about",
-    label: "Origin",
+    label: "About Me",
     kicker: "01",
     title: "Alex Li",
     intro: "Computer Engineering at Waterloo, currently between co-op terms.",
@@ -61,7 +61,7 @@ export const constellations: Constellation[] = [
   {
     id: "experience",
     // The largest shape, because it is the part of the resume that matters most.
-    label: "The Four",
+    label: "Experience",
     kicker: "02",
     title: "Where I've worked",
     intro:
@@ -82,7 +82,7 @@ export const constellations: Constellation[] = [
   },
   {
     id: "projects",
-    label: "The Forge",
+    label: "Projects",
     kicker: "03",
     title: "Things I've built",
     intro:
@@ -100,7 +100,7 @@ export const constellations: Constellation[] = [
   },
   {
     id: "skills",
-    label: "The Toolkit",
+    label: "Skills",
     kicker: "04",
     title: "Toolkit",
     intro:
@@ -120,7 +120,7 @@ export const constellations: Constellation[] = [
   },
   {
     id: "contact",
-    label: "Signal",
+    label: "Contact",
     kicker: "05",
     title: "Get in touch",
     intro: "Looking for my next co-op term. Email is the fastest way to reach me.",

@@ -15,6 +15,25 @@
  * instantly, and a perspectivally correct camera pointed away from the viewer
  * would just be a dark rectangle.
  */
+/**
+ * One finger: wide at the knuckle, tapering to a rounded tip, drooping slightly.
+ *
+ * Rounded rectangles were the last thing making these read as machinery. A rect
+ * has the same width along its whole length and a finger does not, so four of
+ * them side by side is a grille no matter how the spacing varies.
+ */
+function finger(bx: number, tx: number, cy: number, bh: number, th: number, droop: number) {
+  const mx = (bx + tx) / 2;
+  const dir = tx > bx ? 1 : -1;
+  return [
+    `M ${bx} ${cy - bh}`,
+    `Q ${mx} ${cy - bh * 0.9 + droop * 0.45} ${tx - dir * th} ${cy - th + droop}`,
+    `A ${th} ${th} 0 0 ${dir > 0 ? 1 : 0} ${tx - dir * th} ${cy + th + droop}`,
+    `Q ${mx} ${cy + bh * 0.9 + droop * 0.45} ${bx} ${cy + bh}`,
+    "Z",
+  ].join(" ");
+}
+
 export function HandsWithCamera({ className = "" }: { className?: string }) {
   // Fingers curl over the body edge at four heights.
   //
@@ -24,10 +43,10 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
   // glass because nobody grips a camera with their fingers over the front
   // element. The tilt gives each one the slight downward curl of a grip.
   const fingerRows = [
-    { y: 101, w: 34, h: 23, tilt: -7 },
-    { y: 132, w: 40, h: 25, tilt: -3 },
-    { y: 166, w: 37, h: 24, tilt: 2 },
-    { y: 197, w: 29, h: 22, tilt: 7 },
+    { y: 101, w: 36, bh: 12.5, th: 8.5, droop: -3 },
+    { y: 133, w: 43, bh: 13.5, th: 9.0, droop: -1 },
+    { y: 167, w: 39, bh: 13.0, th: 8.5, droop: 2 },
+    { y: 198, w: 30, bh: 11.5, th: 7.5, droop: 4 },
   ];
 
   return (
@@ -59,15 +78,7 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
         {/* thumb, hooked under the body */}
         <path d="M96 214 C 86 232, 92 252, 110 256 C 126 260, 140 250, 140 234 L 140 212 Z" />
         {fingerRows.map((f, i) => (
-          <rect
-            key={`l${i}`}
-            x={148}
-            y={f.y}
-            width={f.w}
-            height={f.h}
-            rx={f.h / 2}
-            transform={`rotate(${f.tilt} ${148 + f.w / 2} ${f.y + f.h / 2})`}
-          />
+          <path key={`l${i}`} d={finger(148, 148 + f.w, f.y + f.bh, f.bh, f.th, f.droop)} />
         ))}
 
         {/* ---- right hand ---- */}
@@ -75,15 +86,7 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
         {/* index finger, reaching up to the shutter release */}
         <path d="M330 96 C 330 78, 300 62, 292 74 C 286 84, 300 92, 306 96 Z" />
         {fingerRows.map((f, i) => (
-          <rect
-            key={`r${i}`}
-            x={332 - f.w}
-            y={f.y}
-            width={f.w}
-            height={f.h}
-            rx={f.h / 2}
-            transform={`rotate(${-f.tilt} ${332 - f.w / 2} ${f.y + f.h / 2})`}
-          />
+          <path key={`r${i}`} d={finger(332, 332 - f.w, f.y + f.bh, f.bh, f.th, f.droop)} />
         ))}
 
         {/* ---- forearms, cropped by the bottom of the frame ---- */}
@@ -99,27 +102,17 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
         <rect x="326" y="90" width="42" height="4" rx="2" fill="url(#camRim)" />
         {/* a highlight riding the top of each knuckle */}
         {fingerRows.map((f, i) => (
-          <rect
+          <path
             key={`lh${i}`}
-            x={148}
-            y={f.y}
-            width={f.w}
-            height={3}
-            rx={1.5}
+            d={finger(148, 148 + f.w * 0.9, f.y + f.bh - f.bh * 0.72, f.bh * 0.26, f.th * 0.22, f.droop)}
             fill="url(#camRim)"
-            transform={`rotate(${f.tilt} ${148 + f.w / 2} ${f.y + f.h / 2})`}
           />
         ))}
         {fingerRows.map((f, i) => (
-          <rect
+          <path
             key={`rh${i}`}
-            x={332 - f.w}
-            y={f.y}
-            width={f.w}
-            height={3}
-            rx={1.5}
+            d={finger(332, 332 - f.w * 0.9, f.y + f.bh - f.bh * 0.72, f.bh * 0.26, f.th * 0.22, f.droop)}
             fill="url(#camRim)"
-            transform={`rotate(${-f.tilt} ${332 - f.w / 2} ${f.y + f.h / 2})`}
           />
         ))}
         {/* the sky in the glass */}

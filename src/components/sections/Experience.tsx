@@ -2,12 +2,12 @@ import { roles } from "@/content/resume";
 
 export function Experience() {
   return (
-    <ol className="space-y-10 border-l border-line pl-6">
+    <ol className="space-y-10 border-l border-sky-600 pl-6">
       {roles.map((role) => (
         <li key={role.id} className="relative">
           <span
             aria-hidden
-            className="absolute top-1.5 -left-6 h-2 w-2 -translate-x-1/2 rounded-full bg-ember-500 ring-4 ring-sky-900"
+            className="absolute top-1.5 -left-6 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-ember-500 shadow-[0_0_8px_2px] shadow-ember-500/40 ring-4 ring-sky-900"
           />
           <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
             <h3 className="text-base font-semibold tracking-tight text-star">{role.title}</h3>

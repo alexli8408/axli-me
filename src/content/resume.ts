@@ -38,8 +38,6 @@ export type Project = {
 
 export const identity = {
   name: "Alex Li",
-  /** Rendered alongside the latin name in the title lockup. */
-  nameZh: "李天翼",
   /** Plain text form, used for <title>, og:title, and the JSON-LD Person. */
   tagline: "Computer Engineering @ University of Waterloo",
   /** On screen the university is the wordmark, so the text stops at the "@". */

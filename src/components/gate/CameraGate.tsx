@@ -89,16 +89,8 @@ export function CameraGate({ phase, onEnter }: { phase: GatePhase; onEnter: () =
         }}
       >
         <div className="flex flex-col items-center gap-2.5 text-center">
-          <h1 className="flex flex-wrap items-baseline justify-center gap-x-3.5 gap-y-1 [text-shadow:0_2px_28px_rgb(0_0_0/0.95)]">
-            <span className="text-2xl font-semibold tracking-[0.2em] text-star uppercase sm:text-3xl">
-              {identity.name}
-            </span>
-            <span
-              lang="zh-Hans"
-              className="text-xl font-light tracking-[0.12em] text-star/75 sm:text-2xl"
-            >
-              {identity.nameZh}
-            </span>
+          <h1 className="text-2xl font-semibold tracking-[0.24em] text-star uppercase [text-shadow:0_2px_28px_rgb(0_0_0/0.95)] sm:text-4xl">
+            {identity.name}
           </h1>
           <p className="font-mono text-[10px] tracking-[0.3em] text-muted uppercase [text-shadow:0_2px_18px_rgb(0_0_0/0.95)] sm:text-xs">
             {identity.tagline}

@@ -27,8 +27,8 @@
   --color-cygnus-400: #b8d4ff;
   --color-cygnus-500: #8ab4f8;
 
-  --color-line: rgba(255, 255, 255, 0.1);
-  --color-line-strong: rgba(255, 255, 255, 0.2);
+  --color-line: rgba(255, 255, 255, 0.13);
+  --color-line-strong: rgba(255, 255, 255, 0.24);
 
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
@@ -118,8 +118,11 @@ body {
   margin: auto;
   border: 1px solid var(--color-line-strong);
   border-radius: 1rem;
-  background-color: color-mix(in srgb, var(--color-sky-900) 92%, transparent);
-  backdrop-filter: blur(22px);
+  /* Nearly opaque, and only a light blur. A heavy backdrop-filter over the
+     canvas bands the nebula gradients into visible blocks, which is what made
+     the card look dirty, and a near-solid panel is easier to read anyway. */
+  background-color: color-mix(in srgb, var(--color-sky-900) 97%, transparent);
+  backdrop-filter: blur(8px);
   color: var(--color-chalk);
   box-shadow:
     0 24px 70px -12px rgb(0 0 0 / 0.85),
@@ -129,13 +132,13 @@ body {
 
 @supports not (backdrop-filter: blur(1px)) {
   .section-card {
-    background-color: color-mix(in srgb, var(--color-sky-900) 99%, transparent);
+    background-color: var(--color-sky-900);
   }
 }
 
 .section-card::backdrop {
-  background-color: rgb(2 4 9 / 0.7);
-  backdrop-filter: blur(6px);
+  background-color: rgb(2 4 9 / 0.82);
+  backdrop-filter: blur(3px);
 }
 
 .section-card[open] {

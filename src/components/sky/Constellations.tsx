@@ -45,7 +45,7 @@ export function Constellations({
         className="absolute inset-0 h-full w-full"
       >
         {constellations.map((c) => (
-          <ConstellationShape key={c.id} c={c} active={active === c.id} />
+          <ConstellationLines key={c.id} c={c} active={active === c.id} />
         ))}
       </svg>
 
@@ -53,6 +53,7 @@ export function Constellations({
         <ul className="contents">
           {constellations.map((c) => (
             <li key={c.id}>
+              <ConstellationStars c={c} active={active === c.id} />
               <ConstellationButton
                 c={c}
                 active={active === c.id}
@@ -80,8 +81,18 @@ function jitter(x: number, y: number, salt: number): number {
   return v - Math.floor(v);
 }
 
-/** The drawn shape: lines first, then stars on top of them. */
-function ConstellationShape({ c, active }: { c: Constellation; active: boolean }) {
+/**
+ * The joining lines only.
+ *
+ * The stars themselves are NOT drawn here. This SVG uses a 1x1 viewBox with
+ * preserveAspectRatio="none" so the normalised coordinates land exactly where
+ * they say, but that scales x by the width and y by the height independently,
+ * which turns every circle into an ellipse squashed by the viewport's aspect
+ * ratio. Lines survive it because non-scaling-stroke keeps their weight uniform
+ * and only their endpoints matter. Circles do not, so they are plain DOM
+ * elements in the layer above, where a pixel is a pixel in both axes.
+ */
+function ConstellationLines({ c, active }: { c: Constellation; active: boolean }) {
   return (
     <g>
       {c.lines.map(([a, b], i) => (
@@ -92,9 +103,6 @@ function ConstellationShape({ c, active }: { c: Constellation; active: boolean }
           x2={c.stars[b].x}
           y2={c.stars[b].y}
           stroke="currentColor"
-          // Non-scaling stroke, otherwise preserveAspectRatio="none" stretches
-          // the line weight along with the coordinates and the verticals come
-          // out visibly thicker than the horizontals.
           vectorEffect="non-scaling-stroke"
           strokeWidth={active ? 1.1 : 0.7}
           className={
@@ -104,54 +112,61 @@ function ConstellationShape({ c, active }: { c: Constellation; active: boolean }
           }
         />
       ))}
+    </g>
+  );
+}
 
+/** Star dots, as DOM so they stay round at any aspect ratio. */
+function ConstellationStars({ c, active }: { c: Constellation; active: boolean }) {
+  return (
+    <>
       {c.stars.map((s, i) => {
         // Bright stars scintillate slowly, faint ones faster, the way seeing
         // actually behaves. The negative delay desyncs them from each other.
         const dur = 2.1 + jitter(s.x, s.y, 1) * 3.6 + s.mag * 1.2;
         const delay = -jitter(s.x, s.y, 2) * 8;
+        const core = (active ? 7.4 : 6.0) * s.mag;
+        const halo = (active ? 26 : 17) * s.mag;
 
         return (
-          <g key={i}>
-            {/* Bloom, sized off the star's own magnitude. */}
-            <circle
-              cx={s.x}
-              cy={s.y}
-              r={0.001}
-              stroke="currentColor"
-              vectorEffect="non-scaling-stroke"
-              strokeWidth={(active ? 16 : 10) * s.mag}
+          <span key={i} aria-hidden>
+            <span
               data-twinkle
+              className="pointer-events-none absolute rounded-full transition-all duration-500 ease-expo"
               style={{
+                left: `${s.x * 100}%`,
+                top: `${s.y * 100}%`,
+                width: `${halo}px`,
+                height: `${halo}px`,
+                marginLeft: `${-halo / 2}px`,
+                marginTop: `${-halo / 2}px`,
+                background: `radial-gradient(circle, ${
+                  active ? "rgba(246,217,155,0.5)" : "rgba(253,250,242,0.32)"
+                } 0%, rgba(253,250,242,0) 70%)`,
                 animation: `star-flare ${dur * 1.15}s ease-in-out ${delay}s infinite`,
               }}
-              className={
-                active
-                  ? "text-ember-400/22 transition-colors duration-500 ease-expo"
-                  : "text-star/14 transition-colors duration-500 ease-expo"
-              }
-              fill="none"
             />
-            <circle
-              cx={s.x}
-              cy={s.y}
-              r={0.001}
-              stroke="currentColor"
-              vectorEffect="non-scaling-stroke"
-              strokeWidth={(active ? 5.4 : 4.2) * s.mag}
+            <span
               data-twinkle
-              style={{ animation: `star-twinkle ${dur}s ease-in-out ${delay}s infinite` }}
-              className={
-                active
-                  ? "text-star transition-colors duration-500 ease-expo"
-                  : "text-star/90 transition-colors duration-500 ease-expo"
-              }
-              fill="none"
+              className="pointer-events-none absolute rounded-full transition-all duration-500 ease-expo"
+              style={{
+                left: `${s.x * 100}%`,
+                top: `${s.y * 100}%`,
+                width: `${core}px`,
+                height: `${core}px`,
+                marginLeft: `${-core / 2}px`,
+                marginTop: `${-core / 2}px`,
+                background: active ? "var(--color-star)" : "rgba(253,250,242,0.9)",
+                boxShadow: active
+                  ? "0 0 10px 2px rgba(246,217,155,0.6)"
+                  : "0 0 6px 1px rgba(253,250,242,0.35)",
+                animation: `star-twinkle ${dur}s ease-in-out ${delay}s infinite`,
+              }}
             />
-          </g>
+          </span>
         );
       })}
-    </g>
+    </>
   );
 }
 
@@ -213,7 +228,7 @@ function ConstellationButton({
             className="text-sm font-medium tracking-[0.14em] uppercase transition-colors duration-500 ease-expo sm:text-base"
             style={{ color: active ? "var(--color-star)" : "var(--color-muted)" }}
           >
-            {c.title === "Alex Li" ? "About" : c.label}
+            {c.label}
           </span>
         </span>
       </a>

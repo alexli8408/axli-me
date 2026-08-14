@@ -73,23 +73,15 @@ export const identity = {
   school: {
     name: "University of Waterloo",
     /**
-     * The official horizontal reverse lockup, shield in colour and wordmark in
-     * white on transparent, straight from uwaterloo.ca/brand. Reverse is the
-     * version meant for dark backgrounds, which is all of them here.
+     * Set as type, not as the lockup. The official file brings the shield with
+     * it, and a gold crest is the loudest thing on a page that is otherwise a
+     * night sky. The words on their own, in the same family as the name above
+     * them and larger than the line they sit in, carry the same information
+     * and belong to the design.
      *
-     * A path rather than a bare <img> with an onError fallback: a path that is
-     * not there would still be requested, which is a 404 on every page load.
-     * Clear it and the name renders as type instead, same slot, nothing moves.
+     * Set this to a path under /public to use an image instead.
      */
-    mark: "/marks/waterloo.png" as string | undefined,
-    /**
-     * Height in px; the width follows the source's 400x160 ratio.
-     *
-     * Bigger than the type around it on purpose. The lockup stacks the
-     * wordmark on two lines inside its own clear space, so matching the height
-     * of a 10px line leaves each of those lines about three pixels tall and
-     * unreadable. At 34 the words read and the shield still sits on the line.
-     */
+    mark: undefined as string | undefined,
     markHeight: 34,
     markRatio: 400 / 160,
   },

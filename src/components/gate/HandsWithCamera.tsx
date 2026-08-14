@@ -75,9 +75,6 @@ const HAND_RIM =
   "C 121 172, 116 180, 121 192 C 126 204, 128 214, 126 224 " +
   "C 116 246, 96 270, 76 284";
 
-/** Where the thumb crosses in front of the palm. */
-const THUMB_RIM = "M 141 224 C 139 214, 145 207, 156 204 C 166 201, 177 202, 184 206";
-
 /** The fold at the wrist, which is what sells the narrowing as anatomy. */
 const WRIST_CREASE = "M 106 250 C 126 264, 148 268, 166 260";
 
@@ -373,6 +370,15 @@ export function HandsWithCamera({
           shape does not remove what is already painted there. This cuts the
           circle out of the camera instead, so the sky behind actually shows.
         */}
+        {/*
+          The hand's own outline, so nothing drawn inside it can escape it.
+          The wrist crease starts at x=106 and the hand's outer edge at that
+          height is 114, so eight pixels of it were hanging in open sky.
+        */}
+        <clipPath id="handClip">
+          <path d={HAND} />
+          <path d={THUMB} />
+        </clipPath>
         <mask id="glassHole">
           <rect x="0" y="0" width="480" height="300" fill="#fff" />
           <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill="#000" />
@@ -531,20 +537,22 @@ export function HandsWithCamera({
                 strokeWidth="1.9"
                 strokeLinecap="round"
               />
-              <path
-                d={THUMB_RIM}
-                stroke="#b8d4ff"
-                strokeOpacity="0.15"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-              <path
-                d={WRIST_CREASE}
-                stroke="#b8d4ff"
-                strokeOpacity="0.16"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
+              {/*
+                The thumb has no rim any more. Seen from in front of the lens
+                it sits inside the palm's own outline and never makes an edge,
+                so lighting one left a hooked line hanging in the middle of the
+                hand looking like a scratch. The shape stays: it still bulges
+                the silhouette where the tip clears the body.
+              */}
+              <g clipPath="url(#handClip)">
+                <path
+                  d={WRIST_CREASE}
+                  stroke="#b8d4ff"
+                  strokeOpacity="0.16"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </g>
             </g>
           ))}
 

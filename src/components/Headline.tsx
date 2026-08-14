@@ -7,10 +7,14 @@ import { identity } from "@/content/resume";
  * One component because it appears twice, over the shutter button and then in
  * the corner of the star map, and the two must not be allowed to drift.
  *
- * The university is set as its own mark. With a file it is the real lockup,
- * shield and all; without one it is the name in type, white and heavier than
- * the line either side of it, which still reads as a wordmark. Either way it
- * occupies the same slot, so adding the image moves nothing else.
+ * The university is set as its own mark, and by default that mark is type:
+ * the words alone, white, in the same family as the name above and half again
+ * the size of the line they sit in. The official lockup brings a gold shield
+ * with it, which is the loudest thing on a page that is otherwise a night sky.
+ * The words carry the same information and belong to the drawing.
+ *
+ * An image can still take the slot, and occupies the same space either way, so
+ * swapping between them moves nothing else on the line.
  */
 export function Headline({ className = "" }: { className?: string }) {
   const { before, after } = identity.headline;
@@ -32,7 +36,9 @@ export function Headline({ className = "" }: { className?: string }) {
           className="relative -top-px"
         />
       ) : (
-        <span className="font-sans font-bold tracking-[0.08em] text-star">{name}</span>
+        <span className="font-sans text-[15px] leading-none font-semibold tracking-[0.02em] text-star sm:text-[17px]">
+          {name}
+        </span>
       )}
       <span>{after}</span>
     </p>

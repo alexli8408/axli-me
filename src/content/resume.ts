@@ -73,19 +73,25 @@ export const identity = {
   school: {
     name: "University of Waterloo",
     /**
-     * The real lockup: shield and wordmark, white text, transparent
-     * background. Drop the file at public/marks/waterloo.png (or .svg) and set
-     * this to "/marks/waterloo.png".
+     * The official horizontal reverse lockup, shield in colour and wordmark in
+     * white on transparent, straight from uwaterloo.ca/brand. Reverse is the
+     * version meant for dark backgrounds, which is all of them here.
      *
-     * A path rather than a bare <img> with an onError fallback, because a path
-     * that is not there yet would still be requested, which is a 404 on every
-     * page load. Until it is set the name is drawn as type instead: white,
-     * heavier and tighter than the line around it, which reads as a wordmark
-     * even without the shield.
+     * A path rather than a bare <img> with an onError fallback: a path that is
+     * not there would still be requested, which is a 404 on every page load.
+     * Clear it and the name renders as type instead, same slot, nothing moves.
      */
-    mark: undefined as string | undefined,
-    /** Rendered height in px. The width follows the file's own ratio. */
-    markHeight: 22,
+    mark: "/marks/waterloo.png" as string | undefined,
+    /**
+     * Height in px; the width follows the source's 400x160 ratio.
+     *
+     * Bigger than the type around it on purpose. The lockup stacks the
+     * wordmark on two lines inside its own clear space, so matching the height
+     * of a 10px line leaves each of those lines about three pixels tall and
+     * unreadable. At 34 the words read and the shield still sits on the line.
+     */
+    markHeight: 34,
+    markRatio: 400 / 160,
   },
   /** Plain text form, used for <title>, og:title, and the JSON-LD Person. */
   tagline: "Computer Engineering @ University of Waterloo",

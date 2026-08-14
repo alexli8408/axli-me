@@ -70,13 +70,22 @@ const THUMB =
   "C 144 232, 141 233, 139 230 Z";
 
 /** Outer contour of the hand, lit by the sky behind it. */
+/**
+ * Follows the hand's own outer edge, all the way to where the hand ends.
+ *
+ * It used to stop at y=284 while the arm carries on to 300, so the lit edge
+ * simply ran out sixteen units short and left a bright line ending in mid air.
+ * The wrist crease happened to finish at the same point, so the two met in a
+ * hard corner and the whole lower arm read as sliced off. Same curve as HAND
+ * from here on, so it cannot come up short again.
+ */
 const HAND_RIM =
   "M 160 92 C 142 90, 127 105, 122 126 C 118 141, 116 152, 119 162 " +
   "C 121 172, 116 180, 121 192 C 126 204, 128 214, 126 224 " +
-  "C 116 246, 96 270, 76 284";
+  "C 116 246, 92 274, 62 300";
 
 /** The fold at the wrist, which is what sells the narrowing as anatomy. */
-const WRIST_CREASE = "M 106 250 C 126 264, 148 268, 166 260";
+const WRIST_CREASE = "M 110 252 C 128 265, 148 268, 164 261";
 
 type Spine = [
   bx: number,
@@ -356,9 +365,13 @@ export function HandsWithCamera({
           <stop offset="0%" stopColor="#cfe0ff" stopOpacity="0.72" />
           <stop offset="100%" stopColor="#cfe0ff" stopOpacity="0" />
         </linearGradient>
+        {/* Gone well before the bottom of the arm, so the edge dies out rather
+            than stopping. An edge that is still visible where its path ends
+            reads as the arm being cut, whatever the arm is actually doing. */}
         <linearGradient id="handRim" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#cfe0ff" stopOpacity="0.52" />
-          <stop offset="55%" stopColor="#cfe0ff" stopOpacity="0.16" />
+          <stop offset="45%" stopColor="#cfe0ff" stopOpacity="0.17" />
+          <stop offset="72%" stopColor="#cfe0ff" stopOpacity="0.04" />
           <stop offset="100%" stopColor="#cfe0ff" stopOpacity="0" />
         </linearGradient>
         {/* The body falls off downward. A single flat tone across this much

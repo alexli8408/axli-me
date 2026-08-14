@@ -41,24 +41,44 @@ function noiseBuffer(ac: AudioContext): AudioBuffer {
   return noise;
 }
 
-/** One mechanical hit: filtered noise under a fast decay. */
-function hit(ac: AudioContext, at: number, freq: number, q: number, decay: number, gain: number) {
+/**
+ * One mechanical hit: a wide band of noise under a very fast decay.
+ *
+ * Band limited between two corners rather than picked out by a narrow bandpass.
+ * A narrow filter leaves a pitched ping, which is a toy; the rasp of a real
+ * mechanism is broadband, and the width between the corners is what makes it
+ * sound like metal scraping rather than a tone.
+ */
+function hit(
+  ac: AudioContext,
+  at: number,
+  lowHz: number,
+  highHz: number,
+  decay: number,
+  gain: number,
+) {
   const src = ac.createBufferSource();
   src.buffer = noiseBuffer(ac);
-  // Start somewhere arbitrary in the buffer so repeated hits are not identical.
   src.loop = true;
 
-  const band = ac.createBiquadFilter();
-  band.type = "bandpass";
-  band.frequency.value = freq;
-  band.Q.value = q;
+  const hp = ac.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = lowHz;
+  hp.Q.value = 0.7;
+
+  const lp = ac.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = highHz;
+  lp.Q.value = 0.7;
 
   const amp = ac.createGain();
   amp.gain.setValueAtTime(0, at);
-  amp.gain.linearRampToValueAtTime(gain, at + 0.0015);
+  // A near instant attack. Anything slower rounds the front off the hit and it
+  // stops sounding struck.
+  amp.gain.linearRampToValueAtTime(gain, at + 0.0008);
   amp.gain.exponentialRampToValueAtTime(0.0001, at + decay);
 
-  src.connect(band).connect(amp).connect(ac.destination);
+  src.connect(hp).connect(lp).connect(amp).connect(ac.destination);
   src.start(at, Math.random() * 0.5);
   src.stop(at + decay + 0.02);
 }
@@ -84,23 +104,23 @@ function thud(ac: AudioContext, at: number, freq: number, decay: number, gain: n
  * Fire it. Safe to call before anything is ready: it does nothing rather than
  * throwing if the browser has no Web Audio or the context will not start.
  */
-export function playShutter(volume = 0.5) {
+export function playShutter(volume = 0.85) {
   const ac = context();
   if (!ac) return;
 
   const t = ac.currentTime + 0.005;
   const v = Math.max(0, Math.min(1, volume));
 
-  // Mirror up: the loudest and the lowest of the three.
-  hit(ac, t, 1500, 0.9, 0.045, 0.5 * v);
-  thud(ac, t, 190, 0.07, 0.28 * v);
+  // Mirror up: the loudest of the three, and the one with the body under it.
+  hit(ac, t, 420, 9000, 0.05, 0.9 * v);
+  thud(ac, t, 190, 0.075, 0.5 * v);
 
-  // The shutter itself: shorter, brighter, and quieter than the mirror.
-  hit(ac, t + 0.035, 3600, 1.6, 0.022, 0.3 * v);
+  // The shutter itself. Bright and wide open at the top, which is the scrape.
+  hit(ac, t + 0.03, 2200, 15000, 0.028, 0.72 * v);
 
-  // Mirror down: the same knock again, softer and duller.
-  hit(ac, t + 0.1, 1100, 0.9, 0.05, 0.26 * v);
-  thud(ac, t + 0.1, 150, 0.06, 0.14 * v);
+  // Mirror down: the same knock again, softer, and duller for having less top.
+  hit(ac, t + 0.095, 320, 5200, 0.055, 0.5 * v);
+  thud(ac, t + 0.095, 150, 0.065, 0.26 * v);
 }
 
 /**

@@ -46,7 +46,7 @@ export const constellations: Constellation[] = [
     label: "About Me",
     kicker: "01",
     title: "Alex Li",
-    intro: "Computer Engineering at Waterloo, currently between co-op terms.",
+    intro: "Computer Engineering at Waterloo, between co-op terms.",
     href: "#about",
     stars: [
       { x: 0.145, y: 0.235, mag: 0.85, label: "Waterloo" },
@@ -64,8 +64,7 @@ export const constellations: Constellation[] = [
     label: "Experience",
     kicker: "02",
     title: "Where I've worked",
-    intro:
-      "Four roles across infrastructure, autonomy, and full-stack product. Two of them are student design teams I'm still on.",
+    intro: "Four roles. Two of them ongoing.",
     href: "#experience",
     stars: [
       { x: 0.395, y: 0.395, mag: 1.0, label: roles[0].org },
@@ -85,8 +84,7 @@ export const constellations: Constellation[] = [
     label: "Projects",
     kicker: "03",
     title: "Things I've built",
-    intro:
-      "Personal work, mostly systems stuff: kernels, pipelines, and the tooling to prove they actually work.",
+    intro: "Personal work, mostly systems.",
     href: "#projects",
     stars: [
       { x: 0.735, y: 0.245, mag: 1.0, label: projects[0].name },
@@ -103,8 +101,7 @@ export const constellations: Constellation[] = [
     label: "Skills",
     kicker: "04",
     title: "Toolkit",
-    intro:
-      "Grouped the way they appear on my resume. Languages first, then what I build on top of them.",
+    intro: "What I reach for.",
     href: "#skills",
     stars: [
       { x: 0.215, y: 0.655, mag: 0.9, label: skills[0].group },
@@ -123,7 +120,7 @@ export const constellations: Constellation[] = [
     label: "Contact",
     kicker: "05",
     title: "Get in touch",
-    intro: "Looking for my next co-op term. Email is the fastest way to reach me.",
+    intro: "Open to co-op. Email is fastest.",
     href: "#contact",
     stars: [
       { x: 0.688, y: 0.688, mag: 0.82, label: links[0].label },

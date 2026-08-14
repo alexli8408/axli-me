@@ -118,11 +118,16 @@ body {
   margin: auto;
   border: 1px solid var(--color-line-strong);
   border-radius: 1rem;
-  /* Nearly opaque, and only a light blur. A heavy backdrop-filter over the
-     canvas bands the nebula gradients into visible blocks, which is what made
-     the card look dirty, and a near-solid panel is easier to read anyway. */
-  background-color: color-mix(in srgb, var(--color-sky-900) 97%, transparent);
-  backdrop-filter: blur(8px);
+  /* Glass, not a panel. The sky carries on behind it, which is the point of
+     putting the whole site inside a photograph.
+
+     The blur is the part to be careful with: a heavy backdrop-filter over the
+     canvas bands the nebula gradients into visible blocks, because they are
+     smooth ramps in 8 bit and blurring pulls the steps apart. Saturating
+     slightly and keeping the blur moderate holds the colour without tearing
+     it, and the fill does the rest of the contrast work. */
+  background-color: color-mix(in srgb, var(--color-sky-950) 66%, transparent);
+  backdrop-filter: blur(16px) saturate(1.25);
   color: var(--color-chalk);
   box-shadow:
     0 24px 70px -12px rgb(0 0 0 / 0.85),
@@ -136,9 +141,10 @@ body {
   }
 }
 
+/* Enough to lift the card off the sky, not enough to black the sky out. */
 .section-card::backdrop {
-  background-color: rgb(2 4 9 / 0.82);
-  backdrop-filter: blur(3px);
+  background-color: rgb(2 4 9 / 0.55);
+  backdrop-filter: blur(2px);
 }
 
 .section-card[open] {
@@ -309,6 +315,7 @@ body {
    !important because each star carries its own inline `animation` shorthand,
    which sets play-state back to running and, being inline, would otherwise
    outrank this. */
-[data-motion="off"] [data-twinkle] {
+[data-motion="off"] [data-twinkle],
+[data-motion="off"] [data-eq="on"] {
   animation-play-state: paused !important;
 }

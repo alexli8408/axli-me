@@ -25,6 +25,12 @@ export type Role = {
   end: string;
   /** Optional sub-headings, used where one role covered distinct products. */
   groups: { name: string | null; bullets: string[] }[];
+  /**
+   * Path to a still under /public, e.g. "/work/del-coin.jpg". Leaving it out
+   * shows an empty frame on purpose: the slot is the layout, and dropping a
+   * file in is the only change needed to fill it.
+   */
+  thumb?: string;
 };
 
 export type Project = {
@@ -34,6 +40,13 @@ export type Project = {
   start: string;
   end: string;
   bullets: string[];
+  /**
+   * Path to a still under /public, e.g. "/work/del-coin.jpg". Leaving it out
+   * shows an empty frame on purpose: the slot is the layout, and dropping a
+   * file in is the only change needed to fill it.
+   */
+  thumb?: string;
+
   /**
    * Marks the slot Alex is holding for the next project. The resume repeats
    * TrueLight here on purpose. Swap the fields below when the new project is

@@ -1,46 +1,23 @@
 import { education } from "@/content/resume";
 
+/** Two sentences and where he studies. Anything longer is a cover letter. */
 export function About() {
   return (
-    <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr]">
-      <div className="space-y-4 text-sm leading-relaxed text-muted">
-        <p>
-          I like working close to the metal. Most of what I build ends up being kernels,
-          robot perception, or infrastructure, and the part I care about is proving it
-          actually works.
-        </p>
-        <p>
-          Right now I&apos;m between co-op terms. I was the lead developer on a membership
-          platform at <span className="text-star">Del-Coin Holdings</span>, and before that I
-          worked on assistive vision tooling, autonomy software at{" "}
-          <span className="text-star">WATonomous</span>, and a MAVLink ground station for{" "}
-          <span className="text-star">Waterloo Aerial Robotics</span>.
-        </p>
-        <p>
-          The problems I enjoy most are the ones with a right answer you can check against.
-          Matching every tensor in a network to a single least-significant bit is more
-          satisfying to me than any benchmark number.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <p className="text-[15px] leading-relaxed text-muted">
+        I work close to the metal: kernels, robot perception, infrastructure. The part I
+        care about is proving the thing actually works, which is why I would rather match
+        every tensor in a network to a single bit than quote a benchmark.
+      </p>
 
-      <div className="rounded-xl border border-line bg-sky-950/60 p-5">
-        <h3 className="font-mono text-[11px] tracking-[0.22em] text-faint uppercase">Education</h3>
-        <p className="mt-4 text-base font-medium text-star">{education.school}</p>
-        <p className="mt-1 text-xs text-muted">{education.degree}</p>
-        <dl className="mt-5 space-y-2.5 border-t border-line pt-4 text-xs">
-          <div className="flex justify-between gap-4">
-            <dt className="text-faint">Term</dt>
-            <dd className="text-right text-muted">{education.start} – {education.end}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-faint">Standing</dt>
-            <dd className="text-right text-muted">{education.detail}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-faint">Based in</dt>
-            <dd className="text-right text-muted">{education.location}</dd>
-          </div>
-        </dl>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-t border-line pt-5">
+        <div>
+          <p className="text-sm font-medium text-star">{education.school}</p>
+          <p className="mt-0.5 text-xs text-muted">{education.degree}</p>
+        </div>
+        <p className="font-mono text-[11px] whitespace-nowrap text-faint">
+          {education.start} – {education.end} · {education.detail}
+        </p>
       </div>
     </div>
   );

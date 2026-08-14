@@ -1,45 +1,26 @@
 import { roles } from "@/content/resume";
+import { Thumb } from "./Thumb";
 
+/**
+ * Role, company, dates, picture. Nothing else.
+ *
+ * The bullets that used to be here are the resume's job, and a wall of them
+ * behind a shutter animation is a wall of them nobody reads. What this needs to
+ * do is say where he has been, quickly.
+ */
 export function Experience() {
   return (
-    <ol className="space-y-10 border-l border-sky-600 pl-6">
+    <ol className="space-y-9">
       {roles.map((role) => (
-        <li key={role.id} className="relative">
-          <span
-            aria-hidden
-            className="absolute top-1.5 -left-6 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-ember-500 shadow-[0_0_8px_2px] shadow-ember-500/40 ring-4 ring-sky-900"
-          />
-          <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
-            <h3 className="text-base font-semibold tracking-tight text-star">{role.title}</h3>
+        <li key={role.id}>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-0.5">
+            <h3 className="text-[15px] font-semibold tracking-tight text-star">{role.title}</h3>
             <span className="font-mono text-[11px] whitespace-nowrap text-faint">
               {role.start} – {role.end}
             </span>
           </div>
-          <div className="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
-            <p className="text-sm text-ember-400 italic">{role.org}</p>
-            <span className="text-[11px] text-faint">{role.location}</span>
-          </div>
-          <div className="mt-4 space-y-4">
-            {role.groups.map((group, gi) => (
-              <div key={group.name ?? gi}>
-                {group.name ? (
-                  <h4 className="mb-2 font-mono text-[10px] tracking-[0.18em] text-cygnus-400 uppercase">
-                    {group.name}
-                  </h4>
-                ) : null}
-                <ul className="space-y-2">
-                  {group.bullets.map((bullet) => (
-                    <li
-                      key={bullet}
-                      className="relative pl-4 text-sm leading-relaxed text-muted before:absolute before:top-[0.6em] before:left-0 before:h-1 before:w-1 before:rounded-full before:bg-sky-600"
-                    >
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <p className="mt-0.5 text-sm text-ember-400">{role.org}</p>
+          <Thumb src={role.thumb} alt={role.org} />
         </li>
       ))}
     </ol>

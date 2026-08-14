@@ -33,7 +33,8 @@ export type Constellation = {
   /** Heading on the overlay card. */
   title: string;
   /** Sub heading on the overlay card. */
-  intro: string;
+  /** Optional line under the card title. Omitted, the title stands alone. */
+  intro?: string;
   href: string;
   stars: Star[];
   /** Index pairs joined by a line. */
@@ -46,7 +47,6 @@ export const constellations: Constellation[] = [
     label: "About Me",
     kicker: "01",
     title: "Alex Li",
-    intro: "Computer Engineering at Waterloo, between co-op terms.",
     href: "#about",
     stars: [
       { x: 0.145, y: 0.235, mag: 0.85, label: "Waterloo" },
@@ -64,7 +64,6 @@ export const constellations: Constellation[] = [
     label: "Experience",
     kicker: "02",
     title: "Where I've worked",
-    intro: "Four roles. Two of them ongoing.",
     href: "#experience",
     stars: [
       { x: 0.395, y: 0.395, mag: 1.0, label: roles[0].org },
@@ -84,7 +83,6 @@ export const constellations: Constellation[] = [
     label: "Projects",
     kicker: "03",
     title: "Things I've built",
-    intro: "Personal work, mostly systems.",
     href: "#projects",
     stars: [
       { x: 0.735, y: 0.245, mag: 1.0, label: projects[0].name },
@@ -101,7 +99,6 @@ export const constellations: Constellation[] = [
     label: "Skills",
     kicker: "04",
     title: "Toolkit",
-    intro: "What I reach for.",
     href: "#skills",
     stars: [
       { x: 0.215, y: 0.655, mag: 0.9, label: skills[0].group },
@@ -119,8 +116,7 @@ export const constellations: Constellation[] = [
     id: "contact",
     label: "Contact",
     kicker: "05",
-    title: "Get in touch",
-    intro: "Open to co-op. Email is fastest.",
+    title: "Get in touch (open to coops)",
     href: "#contact",
     stars: [
       { x: 0.688, y: 0.688, mag: 0.82, label: links[0].label },

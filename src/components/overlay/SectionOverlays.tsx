@@ -186,7 +186,11 @@ export function SectionOverlays({
                   >
                     {c.title}
                   </h2>
-                  <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">{c.intro}</p>
+                  {c.intro ? (
+                    <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+                      {c.intro}
+                    </p>
+                  ) : null}
                 </div>
 
                 <button

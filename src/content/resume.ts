@@ -218,8 +218,8 @@ export const projects: Project[] = [
     stack: ["TypeScript", "Next.js", "Supabase", "Postgres", "Python", "FastAPI", "OpenCV", "Gemini"],
     repo: "https://github.com/alexli8408/limn",
     thumb: "/demo/limn-card",
-    start: "Jan. 2026",
-    end: "Apr. 2026",
+    start: "May 2026",
+    end: "Aug. 2026",
     bullets: [
       "Broadcast 8,000+ updates to 10+ clients at a 40 ms round trip over Supabase Realtime, with no sync server",
       "Snapped freehand strokes to clean shapes client-side in 0.07 ms, which were 95.8% accurate over 600+ strokes",
@@ -232,8 +232,8 @@ export const projects: Project[] = [
     name: "TrueLight",
     stack: ["React Native", "Expo", "Next.js", "FastAPI", "YOLOv3", "OpenCV"],
     thumb: "/demo/truelight-card",
-    start: "Sep. 2025",
-    end: "Dec. 2025",
+    start: "Jan. 2026",
+    end: "Apr. 2026",
     bullets: [
       "Alerted colorblind users based on their color-vision deficiency type, mapping 31 HSV ranges to 8 types of CVD",
       "Ranked by bounding-box area over frame area in low-vision mode, and by threshold tuned for walking or driving",

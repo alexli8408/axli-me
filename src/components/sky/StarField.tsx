@@ -50,10 +50,26 @@ const STAR_COLOURS: [number, number, number][] = [
  * drawn in "lighter" so overlapping clouds add rather than occlude, which is
  * how emission nebulae actually photograph on a long exposure.
  */
-export function StarField({ dim = false, zoom = 1 }: { dim?: boolean; zoom?: number }) {
+export function StarField({
+  dim = false,
+  zoom = 1,
+  paused = false,
+}: {
+  dim?: boolean;
+  zoom?: number;
+  paused?: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const zoomTarget = useRef(zoom);
+  const isPaused = useRef(paused);
   const wake = useRef<() => void>(() => {});
+
+  // Pausing holds the clock rather than stopping the loop mid frame, so the
+  // field resumes from where it froze instead of jumping.
+  useEffect(() => {
+    isPaused.current = paused;
+    wake.current();
+  }, [paused]);
 
   // The zoom lives here rather than as a transform on the wrapper. Scaling a
   // full-viewport element promotes it to its own composited layer, and Chrome
@@ -86,6 +102,7 @@ export function StarField({ dim = false, zoom = 1 }: { dim?: boolean; zoom?: num
     let disposed = false;
     let nextShooter = 2.5;
     let last = 0;
+    let clock = 0;
     let zc = zoomTarget.current;
 
     const build = () => {
@@ -150,9 +167,15 @@ export function StarField({ dim = false, zoom = 1 }: { dim?: boolean; zoom?: num
     };
 
     const draw = (t: number) => {
-      const time = t / 1000;
-      const dt = last ? Math.min(0.05, (t - last) / 1000) : 0.016;
+      const frameDt = last ? Math.min(0.05, (t - last) / 1000) : 0.016;
       last = t;
+      // The clock only advances when running, so a pause freezes the sky where
+      // it stands and resuming picks the phase back up rather than snapping to
+      // wherever a wall clock had got to.
+      const held = isPaused.current;
+      const dt = held ? 0 : frameDt;
+      clock += dt;
+      const time = clock;
 
       ctx.globalCompositeOperation = "source-over";
       const base = ctx.createLinearGradient(0, h, 0, 0);
@@ -167,7 +190,7 @@ export function StarField({ dim = false, zoom = 1 }: { dim?: boolean; zoom?: num
       // above is drawn outside this, so the canvas is covered whatever the
       // zoom is doing.
       const target = zoomTarget.current;
-      zc = reduced ? target : zc + (target - zc) * (1 - Math.exp(-dt / 0.34));
+      zc = reduced || held ? target : zc + (target - zc) * (1 - Math.exp(-frameDt / 0.34));
 
       ctx.save();
       if (Math.abs(zc - 1) > 0.0005) {
@@ -275,7 +298,7 @@ export function StarField({ dim = false, zoom = 1 }: { dim?: boolean; zoom?: num
     const loop = (t: number) => {
       if (disposed) return;
       draw(t);
-      if (reduced) {
+      if (reduced || isPaused.current) {
         raf = 0;
         return;
       }

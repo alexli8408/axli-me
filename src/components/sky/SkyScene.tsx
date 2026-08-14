@@ -14,6 +14,7 @@ const ZOOM_MS = 1200;
 
 export function SkyScene() {
   const [phase, setPhase] = useState<GatePhase>("rise");
+  const [motion, setMotion] = useState(true);
   const { open, notifyReady } = useSectionOverlays();
   const timers = useRef<number[]>([]);
 
@@ -52,7 +53,10 @@ export function SkyScene() {
   const entering = phase === "zoom" || phase === "ready";
 
   return (
-    <main className="relative h-svh w-full overflow-hidden bg-sky-950">
+    <main
+      className="relative h-svh w-full overflow-hidden bg-sky-950"
+      data-motion={motion ? "on" : "off"}
+    >
       {/*
         The sky sits slightly pushed in and dimmed behind the viewfinder, then
         settles back as the frame opens. The push happens inside the canvas, not
@@ -63,12 +67,41 @@ export function SkyScene() {
         have to be corrected for anything.
       */}
       <div className="absolute inset-0">
-        <StarField dim={!entering} zoom={entering ? 1 : 1.16} />
+        <StarField dim={!entering} zoom={entering ? 1 : 1.16} paused={!motion} />
       </div>
 
       <Constellations onOpen={open} revealed={phase === "ready"} />
 
       <CameraGate phase={phase} onEnter={enter} />
+
+      {/*
+        WCAG 2.2.2. The field twinkles and throws meteors for as long as the tab
+        is open, which is moving content past five seconds, and that needs a way
+        to stop it. It appears with the map rather than over the gate, since
+        there is nothing to read until then.
+      */}
+      <button
+        type="button"
+        onClick={() => setMotion((m) => !m)}
+        aria-pressed={!motion}
+        className="absolute right-4 bottom-4 z-30 rounded-full border border-line p-2.5 text-faint transition-all duration-500 ease-expo hover:border-line-strong hover:text-star focus-visible:opacity-100"
+        style={{
+          opacity: phase === "ready" ? 1 : 0,
+          pointerEvents: phase === "ready" ? "auto" : "none",
+        }}
+      >
+        <span className="sr-only">{motion ? "Pause the sky" : "Let the sky move"}</span>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
+          {motion ? (
+            <>
+              <rect x="3" y="2.5" width="2.6" height="9" rx="1" fill="currentColor" />
+              <rect x="8.4" y="2.5" width="2.6" height="9" rx="1" fill="currentColor" />
+            </>
+          ) : (
+            <path d="M4 2.6l7 4.4-7 4.4z" fill="currentColor" />
+          )}
+        </svg>
+      </button>
     </main>
   );
 }

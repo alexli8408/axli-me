@@ -237,3 +237,12 @@ body {
     opacity: 1 !important;
   }
 }
+
+/* The pause control. The canvas holds its own clock; these are CSS animations,
+   so they are held here. Paused rather than removed, so nothing jumps. */
+/* !important because each star carries its own inline `animation` shorthand,
+   which sets play-state back to running and, being inline, would otherwise
+   outrank this. */
+[data-motion="off"] [data-twinkle] {
+  animation-play-state: paused !important;
+}

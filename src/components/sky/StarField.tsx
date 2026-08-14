@@ -27,6 +27,9 @@ type Nebula = {
 
 type Shooter = { x: number; y: number; vx: number; vy: number; life: number; max: number };
 
+/** Scale s about the point (ox, oy), both fractions of the canvas. */
+export type SkyView = { s: number; ox: number; oy: number };
+
 /** Real star colours run from cool blue-white through to warm amber. */
 const STAR_COLOURS: [number, number, number][] = [
   [255, 252, 245],
@@ -52,16 +55,25 @@ const STAR_COLOURS: [number, number, number][] = [
  */
 export function StarField({
   dim = false,
-  zoom = 1,
   paused = false,
+  view,
+  wakeRef,
 }: {
   dim?: boolean;
-  zoom?: number;
   paused?: boolean;
+  /**
+   * How the sky is framed, read fresh every frame. s is the scale about
+   * (ox, oy), both fractions of the canvas. s below 1 shrinks the whole field
+   * toward that point, which is what makes it a photo small enough to sit in
+   * the lens; s of 1 is the sky at life size.
+   */
+  view?: React.RefObject<SkyView>;
+  /** Filled with a function that asks for one frame, for when the loop is idle. */
+  wakeRef?: React.RefObject<(() => void) | null>;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const zoomTarget = useRef(zoom);
   const isPaused = useRef(paused);
+  const viewRef = useRef(view);
   const wake = useRef<() => void>(() => {});
 
   // Pausing holds the clock rather than stopping the loop mid frame, so the
@@ -71,18 +83,21 @@ export function StarField({
     wake.current();
   }, [paused]);
 
-  // The zoom lives here rather than as a transform on the wrapper. Scaling a
-  // full-viewport element promotes it to its own composited layer, and Chrome
-  // rasters that layer for the scaled-up bounds: the tiles past roughly 92%
-  // never get painted, so once the scale settles back the right and bottom
-  // edges show the page background instead of sky. Setting the transform to
-  // none afterwards does not reclaim them, because the raster is already
-  // stale. Doing the zoom in canvas space avoids the layer altogether, and
-  // costs nothing extra since the field redraws every frame anyway.
   useEffect(() => {
-    zoomTarget.current = zoom;
-    wake.current();
-  }, [zoom]);
+    viewRef.current = view;
+  }, [view]);
+
+  // Hand the caller a way to ask for a frame. It matters when the loop is
+  // idle, which is any time the sky is paused or motion is reduced: the view
+  // can still change under it and nothing would redraw.
+  useEffect(() => {
+    const slotRef = wakeRef;
+    if (!slotRef) return;
+    slotRef.current = () => wake.current();
+    return () => {
+      slotRef.current = null;
+    };
+  }, [wakeRef]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -103,7 +118,6 @@ export function StarField({
     let nextShooter = 2.5;
     let last = 0;
     let clock = 0;
-    let zc = zoomTarget.current;
 
     const build = () => {
       // offsetWidth, not getBoundingClientRect. The sky sits inside a wrapper
@@ -178,26 +192,35 @@ export function StarField({
       const time = clock;
 
       ctx.globalCompositeOperation = "source-over";
+
+      // Anything the frame does not cover is never seen, because the sky layer
+      // is clipped to the photo. Painting it flat first just means the canvas
+      // is never showing a stale frame out there.
+      ctx.fillStyle = "#04070f";
+      ctx.fillRect(0, 0, w, h);
+
+      // The whole sky, gradient included, scales together. The gradient used to
+      // sit outside this, which was fine while the scale only ever grew, but a
+      // photo small enough to fit in a lens would have shown a flat wash behind
+      // its stars instead of the sky compressed with them.
+      const v = viewRef.current?.current;
+      const s = v ? v.s : 1;
+
+      ctx.save();
+      if (Math.abs(s - 1) > 0.0005) {
+        const ox = (v?.ox ?? 0.5) * w;
+        const oy = (v?.oy ?? 0.5) * h;
+        ctx.translate(ox, oy);
+        ctx.scale(s, s);
+        ctx.translate(-ox, -oy);
+      }
+
       const base = ctx.createLinearGradient(0, h, 0, 0);
       base.addColorStop(0, "#0a0f22");
       base.addColorStop(0.5, "#060a18");
       base.addColorStop(1, "#03050f");
       ctx.fillStyle = base;
       ctx.fillRect(0, 0, w, h);
-
-      // Ease toward the target zoom. Exponential rather than linear so it
-      // arrives the way the CSS transition it replaced did. The base gradient
-      // above is drawn outside this, so the canvas is covered whatever the
-      // zoom is doing.
-      const target = zoomTarget.current;
-      zc = reduced || held ? target : zc + (target - zc) * (1 - Math.exp(-frameDt / 0.34));
-
-      ctx.save();
-      if (Math.abs(zc - 1) > 0.0005) {
-        ctx.translate(w / 2, h / 2);
-        ctx.scale(zc, zc);
-        ctx.translate(-w / 2, -h / 2);
-      }
 
       // --- nebulae, additive so overlaps brighten ---
       ctx.globalCompositeOperation = "lighter";

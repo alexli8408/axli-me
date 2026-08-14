@@ -6,6 +6,30 @@ import { HandsWithCamera } from "./HandsWithCamera";
 export type GatePhase = "rise" | "gate" | "push" | "shutter" | "zoom" | "ready";
 
 /**
+ * Where the lens ends up on screen.
+ *
+ * The photo that comes out of the shutter has to start inside the glass and
+ * grow from there, so the sky layer needs the lens position in viewport terms.
+ * Rather than measure it, which would mean reading a rect mid transition, these
+ * are the numbers the camera is laid out and transformed by, and the sky does
+ * the same arithmetic. Both sides import this, so they cannot drift.
+ */
+export const CAMERA = {
+  /** The SVG is h-[46svh], and its viewBox is 480x300. */
+  heightFraction: 0.46,
+  aspect: 480 / 300,
+  /**
+   * Lens centre as a fraction of the SVG box. (240, 145) in viewBox units,
+   * carried through the -2.2deg tilt about (240, 210) that the whole drawing
+   * sits under.
+   */
+  lensX: 237.5 / 480,
+  lensY: 145.05 / 300,
+  /** What the camera is doing when the shutter fires. */
+  pushed: { scale: 2.15, lift: -22 },
+} as const;
+
+/**
  * The way in.
  *
  * rise     hands come up from below holding the camera
@@ -31,8 +55,15 @@ export function CameraGate({
 
   // The camera travels toward the eye, so it grows and lifts as it approaches
   // and the frame it holds opens along with it.
-  const camScale = rising ? 0.86 : pushing ? 2.15 : past ? 3.4 : 1;
-  const camLift = rising ? 46 : pushing ? -22 : past ? -40 : 0;
+  //
+  // Once the shutter has gone it stops dead and only fades. It used to keep
+  // flying forward, which meant the photograph was growing out of a lens that
+  // had already moved somewhere else: the print and the glass it came from came
+  // apart on screen. The sky pins the frame to where the lens was at the moment
+  // of the exposure, so that is where the camera has to stay.
+  const held = pushing || past;
+  const camScale = rising ? 0.86 : held ? CAMERA.pushed.scale : 1;
+  const camLift = rising ? 46 : held ? CAMERA.pushed.lift : 0;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
@@ -104,7 +135,7 @@ export function CameraGate({
         aria-hidden
         className="absolute inset-x-0 bottom-0 flex origin-bottom justify-center"
         style={{
-          transform: `translateY(${rising ? 62 : past ? 30 : 0}%) translateY(${camLift}px) scale(${camScale})`,
+          transform: `translateY(${rising ? 62 : 0}%) translateY(${camLift}px) scale(${camScale})`,
           opacity: past ? 0 : 1,
           transitionProperty: "transform, opacity",
           transitionDuration: rising
@@ -112,12 +143,12 @@ export function CameraGate({
             : pushing
               ? "820ms"
               : past
-                ? "700ms"
+                ? "620ms"
                 : "1400ms",
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        <HandsWithCamera className="h-[46svh] w-auto min-w-100 text-[#01030a]" />
+        <HandsWithCamera className="h-[46svh] w-auto text-[#01030a]" />
       </div>
 
       {/* --- shutter: one white blink, over everything ---
@@ -129,7 +160,7 @@ export function CameraGate({
         style={{
           backgroundColor: "var(--color-star)",
           opacity: phase === "shutter" ? 1 : 0,
-          transition: `opacity ${phase === "shutter" ? "55ms" : "520ms"} ${
+          transition: `opacity ${phase === "shutter" ? "40ms" : "620ms"} ${
             phase === "shutter" ? "linear" : "cubic-bezier(0.16, 1, 0.3, 1)"
           }`,
         }}

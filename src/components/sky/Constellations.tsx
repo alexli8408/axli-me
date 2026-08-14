@@ -32,8 +32,12 @@ export function Constellations({
   const [active, setActive] = useState<string | null>(null);
 
   return (
+    // z-40 puts the map above the sky, which climbs to z-30 once the photo is
+    // growing. pointer-events are off for the whole layer and back on for the
+    // links alone: a full-viewport layer above the gate would otherwise eat
+    // the click on the shutter button underneath it.
     <div
-      className="absolute inset-0 transition-opacity duration-1000 ease-expo"
+      className="pointer-events-none absolute inset-0 z-40 transition-opacity duration-1000 ease-expo"
       style={{ opacity: revealed ? 1 : 0 }}
       inert={!revealed}
     >
@@ -242,7 +246,7 @@ function ConstellationButton({
         onBlur={onLeave}
         aria-label={`${c.label}: ${c.title}`}
         // The hit area covers the shape; the name sits below it.
-        className="absolute -translate-x-1/2 -translate-y-1/2 rounded-2xl focus-visible:outline-offset-4"
+        className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 rounded-2xl focus-visible:outline-offset-4"
         style={{
           left: `${mid.x * 100}%`,
           top: `${mid.y * 100}%`,

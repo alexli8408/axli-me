@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Radio } from "@/components/audio/Radio";
 import { CameraGate, type GatePhase } from "@/components/gate/CameraGate";
+import { Headline } from "@/components/Headline";
+import { identity } from "@/content/resume";
 import { useSectionOverlays } from "@/components/overlay/SectionOverlays";
 import { Constellations } from "./Constellations";
 import { StarField, type SkyView } from "./StarField";
@@ -197,6 +199,25 @@ export function SkyScene() {
           under the camera the whole way through, so the picture grows out of
           the glass while the camera dissolves off it. */}
       <StarField paused={!motion} view={view} wakeRef={wakeRef} />
+
+      {/*
+        The name follows you in. It is the same two lines that sat over the
+        shutter button, moved to the corner once the map is up: the sky is the
+        subject from here on, but a portfolio still has to say whose it is
+        without making anyone open a card to find out.
+      */}
+      <header
+        className="pointer-events-none absolute top-6 left-6 z-40 transition-all duration-1000 ease-expo sm:top-8 sm:left-8"
+        style={{
+          opacity: phase === "ready" ? 1 : 0,
+          transform: `translateY(${phase === "ready" ? 0 : -10}px)`,
+        }}
+      >
+        <h1 className="text-lg font-semibold tracking-[0.22em] text-star uppercase [text-shadow:0_2px_22px_rgb(0_0_0/0.9)] sm:text-xl">
+          {identity.name}
+        </h1>
+        <Headline className="mt-1.5 justify-start font-mono text-[10px] tracking-[0.2em] text-muted uppercase [text-shadow:0_2px_16px_rgb(0_0_0/0.9)] sm:text-[11px]" />
+      </header>
 
       <Constellations onOpen={open} revealed={phase === "ready"} />
 

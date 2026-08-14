@@ -265,37 +265,53 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
+   The radio.
+
+   Glass, like the section cards, and for the same reason: the sky is the
+   subject and everything laid over it should admit that. Kept to a moderate
+   blur, since a heavy backdrop-filter over the canvas bands the nebula
+   gradients into visible blocks.
+   --------------------------------------------------------------------------- */
+.radio-card,
+.radio-badge {
+  background-color: color-mix(in srgb, var(--color-sky-950) 62%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 14px 40px -16px rgb(0 0 0 / 0.85);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .radio-card,
+  .radio-badge {
+    background-color: var(--color-sky-900);
+  }
+}
+
+/* ---------------------------------------------------------------------------
    The radio's level meter. Each bar runs at its own speed so they beat against
    each other instead of pumping in unison.
    --------------------------------------------------------------------------- */
 @keyframes eq-bar {
   0%,
   100% {
-    transform: scaleY(0.3);
+    transform: scaleY(0.22);
   }
   50% {
     transform: scaleY(1);
   }
 }
 
+/* Duration and delay come from the element, one per bar, so they never line up. */
 [data-eq="on"] {
   transform-origin: bottom;
-  animation: eq-bar 0.9s ease-in-out infinite;
-}
-[data-eq="on"]:nth-child(2) {
-  animation-duration: 1.25s;
-}
-[data-eq="on"]:nth-child(3) {
-  animation-duration: 0.75s;
-}
-[data-eq="on"]:nth-child(4) {
-  animation-duration: 1.05s;
+  animation-name: eq-bar;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-eq="on"] {
     animation: none !important;
-    transform: scaleY(0.7);
+    transform: scaleY(0.6);
   }
 }
 

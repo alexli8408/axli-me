@@ -10,7 +10,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(identity.url),
-  title: { default: `${identity.name} — ${identity.tagline}`, template: `%s — ${identity.name}` },
+  title: { default: `${identity.name} · ${identity.tagline}`, template: `%s · ${identity.name}` },
   description: identity.blurb,
   keywords: [
     "Alex Li",
@@ -30,13 +30,13 @@ export const metadata: Metadata = {
     type: "website",
     url: identity.url,
     siteName: identity.name,
-    title: `${identity.name} — ${identity.tagline}`,
+    title: `${identity.name} · ${identity.tagline}`,
     description: identity.blurb,
     locale: "en_CA",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${identity.name} — ${identity.tagline}`,
+    title: `${identity.name} · ${identity.tagline}`,
     description: identity.blurb,
   },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large" } },

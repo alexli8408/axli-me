@@ -57,10 +57,33 @@ export type Project = {
 
 export const identity = {
   name: "Alex Li",
+  /**
+   * What sits under the name on screen, in pieces so the school can be a mark
+   * rather than an abbreviation.
+   *
+   * Separate from `tagline` on purpose. This one is for someone already looking
+   * at the page. The other is for a search result or a browser tab, where a
+   * logo is not an option and "CE" matches nothing, so the words are spelled
+   * out there instead.
+   */
+  headline: {
+    before: "CE @",
+    after: "| SWE Intern @ Del-Coin Holdings Inc.",
+  },
+  school: {
+    name: "University of Waterloo",
+    /**
+     * Path to the wordmark under /public, e.g. "/marks/waterloo.svg". Left
+     * unset the name is spelled out instead, which is why this is a switch
+     * rather than a bare <img> with an onError: an unset path that still gets
+     * requested is a 404 on every single page load.
+     */
+    mark: undefined as string | undefined,
+    /** Rendered height of the mark. Width follows the file's own ratio. */
+    markHeight: 15,
+  },
   /** Plain text form, used for <title>, og:title, and the JSON-LD Person. */
   tagline: "Computer Engineering @ University of Waterloo",
-  /** On screen the university is the wordmark, so the text stops at the "@". */
-  taglinePrefix: "Computer Engineering @",
   blurb:
     "Computer Engineering student at Waterloo. I work on low-level systems: hand-written INT8 kernels, ROS 2 perception stacks, and AWS infrastructure built from an empty account up.",
   location: "Waterloo, Ontario",

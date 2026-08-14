@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { hashAt } from "@/lib/hash";
 import {
   centroid,
   constellations,
@@ -78,12 +79,13 @@ export function Constellations({
  * Deterministic pseudo-random from a star's own coordinates.
  *
  * Not Math.random: this runs during render, and a value that differs between
- * the server and the client is a hydration mismatch. Same input, same star,
- * every time.
+ * the server and the client is a hydration mismatch. Not Math.sin either, for
+ * the same reason one step further out: the spec does not pin its precision,
+ * so two engines may differ in the last bits and an unrounded style value
+ * carries that difference straight into the markup. hashAt is integers only.
  */
 function jitter(x: number, y: number, salt: number): number {
-  const v = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
-  return v - Math.floor(v);
+  return hashAt(x, y, salt);
 }
 
 /**
@@ -128,8 +130,8 @@ function ConstellationStars({ c, active }: { c: Constellation; active: boolean }
       {c.stars.map((s, i) => {
         // Bright stars scintillate slowly, faint ones faster, the way seeing
         // actually behaves. The negative delay desyncs them from each other.
-        const dur = 2.1 + jitter(s.x, s.y, 1) * 3.6 + s.mag * 1.2;
-        const delay = -jitter(s.x, s.y, 2) * 8;
+        const dur = +(2.1 + jitter(s.x, s.y, 1) * 3.6 + s.mag * 1.2).toFixed(3);
+        const delay = +(-jitter(s.x, s.y, 2) * 8).toFixed(3);
         const core = (active ? 7.4 : 6.0) * s.mag;
         const halo = (active ? 26 : 17) * s.mag;
 

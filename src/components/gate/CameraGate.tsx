@@ -1,6 +1,7 @@
 "use client";
 
 import { identity } from "@/content/resume";
+import { Headline } from "@/components/Headline";
 import { HandsWithCamera } from "./HandsWithCamera";
 
 export type GatePhase = "rise" | "gate" | "push" | "shutter" | "zoom" | "ready";
@@ -97,9 +98,7 @@ export function CameraGate({
           <h1 className="text-2xl font-semibold tracking-[0.24em] text-star uppercase [text-shadow:0_2px_28px_rgb(0_0_0/0.95)] sm:text-4xl">
             {identity.name}
           </h1>
-          <p className="font-mono text-[10px] tracking-[0.3em] text-muted uppercase [text-shadow:0_2px_18px_rgb(0_0_0/0.95)] sm:text-xs">
-            {identity.tagline}
-          </p>
+          <Headline className="font-mono text-[10px] tracking-[0.3em] text-muted uppercase [text-shadow:0_2px_18px_rgb(0_0_0/0.95)] sm:text-xs" />
         </div>
 
         <button
@@ -109,7 +108,7 @@ export function CameraGate({
           className="group pointer-events-auto flex items-center gap-3 rounded-full border border-ember-500/45 bg-sky-950/70 px-6 py-3 font-mono text-[11px] tracking-[0.26em] text-ember-400 uppercase backdrop-blur-sm transition-all duration-500 ease-expo hover:border-ember-400 hover:bg-sky-900/80 hover:text-star"
         >
           <ShutterIcon />
-          Take the shot
+          Enter my portfolio
         </button>
       </div>
 

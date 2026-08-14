@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hash01 } from "@/lib/hash";
 
 /**
  * Lofi Girl's synthwave radio, the stream with Lofi Boy and the dog.
@@ -26,6 +27,8 @@ const RADIO = {
 const VOLUME = 32;
 /** Long enough that it arrives rather than starts. */
 const FADE_MS = 3200;
+/** Short, but not a cut. A cut is what makes the click. */
+const FADE_OUT_MS = 420;
 const STORAGE_KEY = "axli:music";
 
 type YTPlayer = {
@@ -98,6 +101,8 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
   const player = useRef<YTPlayer | null>(null);
   const fade = useRef(0);
   const armed = useRef(false);
+  /** What the volume actually is, so a fade can start from where it stands. */
+  const level = useRef(0);
   /** Set when a fade is owed, cleared once sound has actually started. */
   const owed = useRef(true);
 
@@ -117,17 +122,50 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
     if (!p) return;
     cancelAnimationFrame(fade.current);
 
-    p.setVolume(0);
-    const t0 = performance.now();
-    const step = (now: number) => {
-      const u = Math.min(1, (now - t0) / FADE_MS);
-      const v = VOLUME * u * u;
+    const set = (v: number) => {
+      level.current = v;
       p.setVolume(v);
       // Mirrored onto the host element so the ramp can be watched from
       // outside. The player's own volume is behind a cross-origin iframe and
       // there is otherwise no way to tell a working fade from a broken one.
       if (wrapRef.current) wrapRef.current.dataset.volume = v.toFixed(1);
+    };
+
+    set(0);
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const u = Math.min(1, (now - t0) / FADE_MS);
+      set(VOLUME * u * u);
       if (u < 1) fade.current = requestAnimationFrame(step);
+    };
+    fade.current = requestAnimationFrame(step);
+  }, []);
+
+  /**
+   * Down to nothing, then stop.
+   *
+   * Pausing outright cut the waveform off wherever it happened to be, and a
+   * waveform that stops at a non-zero sample is a step, which is a click. Short
+   * enough to still feel like pressing stop.
+   */
+  const fadeOutThenPause = useCallback(() => {
+    const p = player.current;
+    if (!p) return;
+    cancelAnimationFrame(fade.current);
+
+    const from = level.current;
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const u = Math.min(1, (now - t0) / FADE_OUT_MS);
+      const v = from * (1 - u);
+      level.current = v;
+      p.setVolume(v);
+      if (wrapRef.current) wrapRef.current.dataset.volume = v.toFixed(1);
+      if (u < 1) {
+        fade.current = requestAnimationFrame(step);
+      } else {
+        p.pauseVideo();
+      }
     };
     fade.current = requestAnimationFrame(step);
   }, []);
@@ -172,6 +210,7 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
         // or not any of this worked, and the volume ramp never ran at all.
         onReady: (e) => {
           player.current = e.target;
+          level.current = 0;
           e.target.setVolume(0);
           e.target.unMute();
           e.target.playVideo();
@@ -239,10 +278,19 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
       return;
     }
     if (playing) {
-      cancelAnimationFrame(fade.current);
-      player.current.pauseVideo();
+      fadeOutThenPause();
       window.localStorage?.setItem(STORAGE_KEY, "off");
     } else {
+      // Silent before it is told to play, not after.
+      //
+      // Resuming used to call playVideo() while the volume was still wherever
+      // the last fade had left it, so it came back at full level for the
+      // fraction of a second it took the playing event to arrive and reset it
+      // to zero. That was the blast, then the silence, then the fade: three
+      // things where there should have been one.
+      cancelAnimationFrame(fade.current);
+      level.current = 0;
+      player.current.setVolume(0);
       owed.current = true;
       player.current.playVideo();
       window.localStorage?.removeItem(STORAGE_KEY);
@@ -265,56 +313,94 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
 
       {!broken && (
         <div
-          className="absolute bottom-4 left-4 z-50 flex items-center gap-2 transition-opacity duration-500 ease-expo"
+          className="absolute bottom-4 left-4 z-50 transition-opacity duration-700 ease-expo"
           style={{
             opacity: visible ? 1 : 0,
             pointerEvents: visible ? "auto" : "none",
           }}
         >
-          <button
-            type="button"
-            onClick={toggle}
-            aria-pressed={playing}
-            className="group flex items-center gap-2.5 rounded-full border border-line py-2 pr-3.5 pl-3 font-mono text-[10px] tracking-[0.22em] text-faint uppercase transition-all duration-500 ease-expo hover:border-line-strong hover:text-star"
-          >
-            <span className="sr-only">
-              {playing ? "Pause" : "Play"} {RADIO.by} {RADIO.title}
-            </span>
-            <Bars playing={playing} />
-            <span aria-hidden>{RADIO.title}</span>
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={toggle}
+              aria-pressed={playing}
+              className="radio-card flex w-[15.5rem] flex-col gap-2 rounded-2xl border border-line px-4 pt-3 pb-3 text-left transition-colors duration-500 ease-expo hover:border-line-strong"
+            >
+              <span className="sr-only">
+                {playing ? "Pause" : "Play"} {RADIO.by} {RADIO.title}
+              </span>
+              <span aria-hidden className="block">
+                <span className="block font-mono text-[12px] leading-none font-medium tracking-[0.26em] text-star uppercase">
+                  {RADIO.title}
+                </span>
+                <span className="mt-1.5 block font-mono text-[10px] leading-none tracking-[0.24em] text-faint uppercase">
+                  {RADIO.by}
+                </span>
+              </span>
+              <Spectrum playing={playing} />
+            </button>
 
-          {/* Whose music it is, and where it actually lives. */}
-          <a
-            href={RADIO.href}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="rounded-full border border-line/70 px-2.5 py-2 font-mono text-[10px] tracking-[0.18em] text-faint uppercase transition-colors duration-500 ease-expo hover:border-line-strong hover:text-star"
-          >
-            {RADIO.by}
-          </a>
+            {/* Sibling, not a child: a link inside a button is not valid, and
+                the two do different things. */}
+            <a
+              href={RADIO.href}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label={`Open ${RADIO.title} by ${RADIO.by} on YouTube`}
+              className="radio-badge absolute -right-2 -bottom-2 grid h-9 w-9 place-items-center rounded-full border border-line text-faint transition-colors duration-500 ease-expo hover:border-ember-500/60 hover:text-ember-400"
+            >
+              <svg width="15" height="11" viewBox="0 0 24 17" fill="none" aria-hidden>
+                <path
+                  d="M23.5 2.6A3 3 0 0 0 21.4.5C19.5 0 12 0 12 0S4.5 0 2.6.5A3 3 0 0 0 .5 2.6C0 4.5 0 8.5 0 8.5s0 4 .5 5.9a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.9.5-5.9s0-4-.5-5.9Z"
+                  fill="currentColor"
+                  opacity="0.55"
+                />
+                <path d="M9.5 12.1V4.9l6.3 3.6-6.3 3.6Z" fill="var(--color-sky-950)" />
+              </svg>
+            </a>
+          </div>
         </div>
       )}
     </>
   );
 }
 
-/** Four bars that move while there is sound and sit flat when there is not. */
-function Bars({ playing }: { playing: boolean }) {
+/**
+ * The level meter.
+ *
+ * Not a real analyser, and it cannot be one: the audio is playing inside a
+ * cross-origin iframe, so an AudioContext has nothing to tap. These are bars
+ * with their own periods, close enough in feel and honest about being decor.
+ * Each one gets a fixed duration and a negative delay derived from its index,
+ * so they beat against each other rather than pumping in unison.
+ *
+ * The numbers come from an integer hash and are rounded before they reach a
+ * style. Math.sin was the obvious way to get them and it caused a hydration
+ * mismatch: its precision is not pinned by the spec, so Node and the browser
+ * can disagree in the last bits, which is enough to turn 43.7719% into
+ * 43.7718% and make React throw the tree away.
+ */
+const BAR_COUNT = 34;
+
+function Spectrum({ playing }: { playing: boolean }) {
   return (
-    <span aria-hidden className="flex h-3 items-end gap-[2px]">
-      {[0, 1, 2, 3].map((i) => (
-        <span
-          key={i}
-          data-eq={playing ? "on" : undefined}
-          className="w-[2px] rounded-full bg-ember-500 transition-all duration-500 ease-expo"
-          style={{
-            height: playing ? "100%" : "3px",
-            opacity: playing ? 1 : 0.55,
-            animationDelay: `${i * 0.16}s`,
-          }}
-        />
-      ))}
+    <span aria-hidden className="flex h-4 items-end gap-[2px]">
+      {Array.from({ length: BAR_COUNT }, (_, i) => {
+        const r = hash01(i);
+        return (
+          <span
+            key={i}
+            data-eq={playing ? "on" : undefined}
+            className="w-[3px] flex-1 rounded-full bg-cygnus-500/70 transition-all duration-700 ease-expo"
+            style={{
+              height: playing ? `${(28 + r * 72).toFixed(2)}%` : "10%",
+              opacity: playing ? +(0.5 + r * 0.5).toFixed(3) : 0.35,
+              animationDuration: `${(0.55 + r * 0.85).toFixed(3)}s`,
+              animationDelay: `-${(r * 1.4).toFixed(2)}s`,
+            }}
+          />
+        );
+      })}
     </span>
   );
 }

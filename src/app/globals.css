@@ -258,6 +258,15 @@ body {
   );
 }
 
+/* The flash is a full screen of near-white. Under reduced motion the blanket
+   transition override above collapses it to an instant on and off, which turns
+   a soft bleach into a hard strobe, so it is capped at a hint of one there. */
+@media (prefers-reduced-motion: reduce) {
+  .shutter-flash {
+    opacity: 0.3 !important;
+  }
+}
+
 /* The pause control. The canvas holds its own clock, so it freezes itself;
    these are CSS animations, so they are held here. Paused rather than removed,
    so nothing jumps.

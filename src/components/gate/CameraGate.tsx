@@ -11,7 +11,7 @@ export type GatePhase = "rise" | "gate" | "push" | "shutter" | "zoom" | "ready";
  * rise     hands come up from below holding the camera
  * gate     settled, viewfinder framing the sky, waiting for the visitor
  * push     the camera comes to the eye, the frame opening as it approaches
- * shutter  one hard blink
+ * shutter  the flash, one white blink
  * zoom     into the photo, which is the star map
  *
  * The gate is not only decoration. Browsers refuse to play audio until the page
@@ -61,8 +61,8 @@ export function CameraGate({
         Paint order matters here and it is not the order these were written in.
         The title goes under the camera: it fades over 800ms while the camera
         pushes up over it, and on top it showed straight through the body. The
-        shutter goes over everything, since a blackout the hands show through is
-        not a blackout.
+        shutter goes over everything, since a flash the hands show through is
+        not a flash.
       */}
 
       {/* --- title and the way in --- */}
@@ -120,13 +120,18 @@ export function CameraGate({
         <HandsWithCamera className="h-[46svh] w-auto min-w-100 text-[#01030a]" />
       </div>
 
-      {/* --- shutter: one hard blink, over everything --- */}
+      {/* --- shutter: one white blink, over everything ---
+          A flash, not a blackout. It snaps to full in 55ms and bleaches out
+          slowly, which is what an exposure looks like from in front of it. */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-black"
+        className="shutter-flash absolute inset-0"
         style={{
+          backgroundColor: "var(--color-star)",
           opacity: phase === "shutter" ? 1 : 0,
-          transition: `opacity ${phase === "shutter" ? "70ms" : "300ms"} linear`,
+          transition: `opacity ${phase === "shutter" ? "55ms" : "520ms"} ${
+            phase === "shutter" ? "linear" : "cubic-bezier(0.16, 1, 0.3, 1)"
+          }`,
         }}
       />
     </div>

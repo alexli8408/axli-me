@@ -59,7 +59,7 @@ export function SkyScene() {
           transitionDuration: `${ZOOM_MS}ms`,
         }}
       >
-        <StarField paused={phase === "gate"} />
+        <StarField dim={phase === "gate"} />
       </div>
 
       <Constellations onOpen={open} revealed={phase === "ready"} />

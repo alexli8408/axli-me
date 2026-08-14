@@ -6,38 +6,52 @@ type FieldStar = {
   x: number;
   y: number;
   r: number;
-  /** Base brightness. */
   b: number;
-  /** Twinkle rate and phase. */
   rate: number;
   phase: number;
-  /** Parallax depth, 0 far and 1 near. */
   depth: number;
-  hue: "warm" | "cold" | "plain";
+  col: [number, number, number];
 };
 
-/**
- * Background star field.
- *
- * Canvas 2D on purpose. The interactive constellations are real SVG elements
- * sitting on top of this, so nothing here needs to be clicked, focused or read.
- * That split is what makes this version far simpler than driving hit targets
- * off a shader: the decorative half is pixels, the functional half is DOM, and
- * neither has to know about the other.
- */
-export function StarField({ paused = false }: { paused?: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pausedRef = useRef(paused);
-  /** Set by the render effect, so unpausing can restart a stopped loop. */
-  const kickRef = useRef<(() => void) | null>(null);
+type Nebula = {
+  x: number;
+  y: number;
+  /** Radius as a fraction of the diagonal. */
+  r: number;
+  col: [number, number, number];
+  alpha: number;
+  /** Drift speed and phase, so the clouds breathe rather than sit still. */
+  rate: number;
+  phase: number;
+};
 
-  // Mirrored into a ref so the render loop reads the latest value without being
-  // torn down and rebuilt every time it flips. Unpausing has to kick the loop
-  // as well: it stops itself when paused, and updating a ref does not wake it.
-  useEffect(() => {
-    pausedRef.current = paused;
-    if (!paused) kickRef.current?.();
-  }, [paused]);
+type Shooter = { x: number; y: number; vx: number; vy: number; life: number; max: number };
+
+/** Real star colours run from cool blue-white through to warm amber. */
+const STAR_COLOURS: [number, number, number][] = [
+  [255, 252, 245],
+  [255, 252, 245],
+  [255, 252, 245],
+  [201, 221, 255],
+  [166, 199, 255],
+  [255, 226, 178],
+  [255, 198, 143],
+  [231, 190, 255],
+];
+
+/**
+ * Background sky: nebulae, a galactic band, stars, and the occasional meteor.
+ *
+ * Canvas 2D. The interactive constellations are real SVG elements on top of
+ * this, so nothing here needs to be clicked, focused or read, and the two
+ * halves never have to know about each other.
+ *
+ * The nebulae are what stop this reading as black with white dots. They are
+ * drawn in "lighter" so overlapping clouds add rather than occlude, which is
+ * how emission nebulae actually photograph on a long exposure.
+ */
+export function StarField({ dim = false }: { dim?: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,118 +63,202 @@ export function StarField({ paused = false }: { paused?: boolean }) {
 
     let w = 0;
     let h = 0;
+    let diag = 0;
     let stars: FieldStar[] = [];
+    let nebulae: Nebula[] = [];
+    let shooters: Shooter[] = [];
     let raf = 0;
     let disposed = false;
+    let nextShooter = 2.5;
+    let last = 0;
 
     const build = () => {
       const rect = canvas.getBoundingClientRect();
-      // Cap the ratio: this is a field of 1px dots, and rendering it at 3x on a
-      // phone costs a lot for detail nobody can resolve.
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       w = Math.max(1, Math.round(rect.width));
       h = Math.max(1, Math.round(rect.height));
+      diag = Math.hypot(w, h);
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // Density by area, so a wide monitor is not sparser than a phone.
-      const count = Math.round((w * h) / 5200);
+      // The galactic band runs corner to corner. Stars near it are denser and
+      // brighter, which is the strongest single cue that this is a galaxy and
+      // not a random scatter of dots.
+      const bandAngle = -0.42;
+      const nx = Math.sin(bandAngle);
+      const ny = -Math.cos(bandAngle);
+
+      const count = Math.round((w * h) / 2100);
       stars = Array.from({ length: count }, () => {
+        let x = Math.random() * w;
+        let y = Math.random() * h;
+
+        if (Math.random() < 0.62) {
+          const along = (Math.random() - 0.5) * diag;
+          // Three uniforms averaged approximates a normal, so the band has
+          // soft edges rather than a hard boundary.
+          const across =
+            ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * h * 0.85;
+          x = w / 2 + -ny * along + nx * across;
+          y = h / 2 + nx * along + ny * across;
+        }
+
         const depth = Math.random();
-        const roll = Math.random();
         return {
-          x: Math.random() * w,
-          y: Math.random() * h,
-          // Nearer stars are bigger and brighter, which is what sells depth.
-          r: 0.35 + depth * 1.15,
-          b: 0.18 + depth * 0.62,
-          rate: 0.4 + Math.random() * 1.5,
+          x,
+          y,
+          r: 0.3 + depth * 1.25,
+          b: 0.16 + depth * 0.74,
+          rate: 0.4 + Math.random() * 1.7,
           phase: Math.random() * Math.PI * 2,
           depth,
-          hue: roll > 0.88 ? "cold" : roll > 0.76 ? "warm" : "plain",
+          col: STAR_COLOURS[(Math.random() * STAR_COLOURS.length) | 0],
         };
       });
-    };
 
-    build();
-    const ro = new ResizeObserver(() => {
-      build();
-      // Setting canvas.width clears the bitmap. When the loop is stopped, for
-      // reduced motion or while paused, nothing would ever repaint it and the
-      // field goes black, so ask for a single frame here.
-      if (!raf && !disposed) raf = requestAnimationFrame(loop);
-    });
-    ro.observe(canvas);
+      nebulae = [
+        { x: 0.22, y: 0.24, r: 0.42, col: [96, 58, 176], alpha: 0.3, rate: 0.05, phase: 0 },
+        { x: 0.7, y: 0.34, r: 0.38, col: [188, 62, 140], alpha: 0.24, rate: 0.04, phase: 1.7 },
+        { x: 0.48, y: 0.52, r: 0.5, col: [40, 96, 190], alpha: 0.26, rate: 0.03, phase: 3.1 },
+        { x: 0.8, y: 0.68, r: 0.34, col: [28, 150, 158], alpha: 0.2, rate: 0.045, phase: 4.4 },
+        { x: 0.16, y: 0.74, r: 0.34, col: [206, 132, 60], alpha: 0.16, rate: 0.035, phase: 5.6 },
+        { x: 0.55, y: 0.14, r: 0.3, col: [150, 70, 200], alpha: 0.18, rate: 0.05, phase: 2.4 },
+      ];
+    };
 
     const draw = (t: number) => {
       const time = t / 1000;
+      const dt = last ? Math.min(0.05, (t - last) / 1000) : 0.016;
+      last = t;
 
-      // The sky is not flat black. A faint gradient reads as atmosphere near
-      // the horizon and gives the field somewhere to sit.
-      const grad = ctx.createLinearGradient(0, h, 0, 0);
-      grad.addColorStop(0, "#0a1020");
-      grad.addColorStop(0.45, "#060b16");
-      grad.addColorStop(1, "#04070f");
-      ctx.fillStyle = grad;
+      ctx.globalCompositeOperation = "source-over";
+      const base = ctx.createLinearGradient(0, h, 0, 0);
+      base.addColorStop(0, "#0a0f22");
+      base.addColorStop(0.5, "#060a18");
+      base.addColorStop(1, "#03050f");
+      ctx.fillStyle = base;
       ctx.fillRect(0, 0, w, h);
 
+      // --- nebulae, additive so overlaps brighten ---
+      ctx.globalCompositeOperation = "lighter";
+      for (const n of nebulae) {
+        const breathe = reduced ? 1 : 1 + 0.12 * Math.sin(time * n.rate * 6 + n.phase);
+        const cx = n.x * w + (reduced ? 0 : Math.sin(time * n.rate + n.phase) * 26);
+        const cy = n.y * h + (reduced ? 0 : Math.cos(time * n.rate * 0.8 + n.phase) * 16);
+        const rad = n.r * diag * 0.5 * breathe;
+        const [r, g, b] = n.col;
+
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${n.alpha})`);
+        grad.addColorStop(0.45, `rgba(${r}, ${g}, ${b}, ${n.alpha * 0.35})`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // --- stars ---
       for (const s of stars) {
-        // Twinkle is atmospheric scintillation, so it should be irregular
-        // rather than a clean sine. Two detuned waves is enough to break it up.
         const flicker = reduced
           ? 1
-          : 0.72 +
-            0.28 *
-              (0.6 * Math.sin(time * s.rate + s.phase) +
-                0.4 * Math.sin(time * s.rate * 2.7 + s.phase * 1.7));
+          : // Deeper modulation than a gentle shimmer: the two detuned waves
+            // beat against each other so each star flashes on its own schedule
+            // rather than breathing in time with the rest of the field.
+            0.5 +
+            0.5 *
+              (0.55 * Math.sin(time * s.rate + s.phase) +
+                0.45 * Math.sin(time * s.rate * 2.7 + s.phase * 1.7));
 
-        // Very slow drift, nearer stars moving more.
-        const drift = reduced ? 0 : Math.sin(time * 0.02 + s.phase) * s.depth * 6;
-        const x = s.x + drift;
+        const x = s.x + (reduced ? 0 : Math.sin(time * 0.03 + s.phase) * s.depth * 7);
         const alpha = Math.max(0, s.b * flicker);
+        const [r, g, b] = s.col;
 
         ctx.beginPath();
         ctx.arc(x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle =
-          s.hue === "cold"
-            ? `rgba(184, 212, 255, ${alpha})`
-            : s.hue === "warm"
-              ? `rgba(255, 226, 178, ${alpha})`
-              : `rgba(253, 250, 242, ${alpha})`;
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         ctx.fill();
 
-        // The brightest few get a soft bloom, the way a fast lens renders them.
-        if (s.depth > 0.86) {
-          const g = ctx.createRadialGradient(x, s.y, 0, x, s.y, s.r * 7);
-          g.addColorStop(0, `rgba(253, 250, 242, ${alpha * 0.24})`);
-          g.addColorStop(1, "rgba(253, 250, 242, 0)");
-          ctx.fillStyle = g;
+        if (s.depth > 0.8) {
+          const bloom = ctx.createRadialGradient(x, s.y, 0, x, s.y, s.r * 9);
+          bloom.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha * 0.3})`);
+          bloom.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+          ctx.fillStyle = bloom;
           ctx.beginPath();
-          ctx.arc(x, s.y, s.r * 7, 0, Math.PI * 2);
+          ctx.arc(x, s.y, s.r * 9, 0, Math.PI * 2);
           ctx.fill();
         }
       }
+
+      // --- meteors, rare enough to feel like luck rather than decoration ---
+      if (!reduced) {
+        nextShooter -= dt;
+        if (nextShooter <= 0) {
+          nextShooter = 3.5 + Math.random() * 7;
+          const speed = 420 + Math.random() * 380;
+          const ang = 2.5 + Math.random() * 0.5;
+          shooters.push({
+            x: Math.random() * w * 0.9,
+            y: Math.random() * h * 0.45,
+            vx: Math.cos(ang) * speed,
+            vy: -Math.sin(ang) * speed * 0.55,
+            life: 0,
+            max: 0.9 + Math.random() * 0.5,
+          });
+        }
+
+        for (const m of shooters) {
+          m.life += dt;
+          m.x += m.vx * dt;
+          m.y -= m.vy * dt;
+
+          const fade = Math.sin(Math.min(1, m.life / m.max) * Math.PI);
+          const len = 120 + 90 * fade;
+          const norm = Math.hypot(m.vx, m.vy) || 1;
+          const tx = m.x - (m.vx / norm) * len;
+          const ty = m.y + (m.vy / norm) * len;
+
+          const trail = ctx.createLinearGradient(m.x, m.y, tx, ty);
+          trail.addColorStop(0, `rgba(255, 250, 240, ${0.85 * fade})`);
+          trail.addColorStop(1, "rgba(255, 250, 240, 0)");
+          ctx.strokeStyle = trail;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(m.x, m.y);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+        }
+        shooters = shooters.filter((m) => m.life < m.max);
+      }
+
+      ctx.globalCompositeOperation = "source-over";
     };
 
     const loop = (t: number) => {
       if (disposed) return;
       draw(t);
-      // Reduced motion draws one frame and stops. Paused does the same.
-      if (reduced || pausedRef.current) {
+      if (reduced) {
         raf = 0;
         return;
       }
       raf = requestAnimationFrame(loop);
     };
 
-    raf = requestAnimationFrame(loop);
-    kickRef.current = () => {
+    build();
+    const ro = new ResizeObserver(() => {
+      build();
+      // Setting canvas.width clears the bitmap, so a stopped loop would leave
+      // the field black. Ask for one frame.
       if (!raf && !disposed) raf = requestAnimationFrame(loop);
-    };
+    });
+    ro.observe(canvas);
+
+    raf = requestAnimationFrame(loop);
 
     const onVisibility = () => {
       if (document.visibilityState === "visible" && !raf && !disposed) {
+        last = 0;
         raf = requestAnimationFrame(loop);
       }
     };
@@ -170,10 +268,16 @@ export function StarField({ paused = false }: { paused?: boolean }) {
       disposed = true;
       if (raf) cancelAnimationFrame(raf);
       ro.disconnect();
-      kickRef.current = null;
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
-  return <canvas ref={canvasRef} aria-hidden className="absolute inset-0 h-full w-full" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden
+      className="absolute inset-0 h-full w-full transition-all duration-1000 ease-expo"
+      style={{ filter: dim ? "brightness(0.6) saturate(0.75)" : "none" }}
+    />
+  );
 }

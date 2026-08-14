@@ -196,3 +196,41 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Star twinkle.
+
+   Driven by CSS rather than the render loop so it runs on the compositor and
+   costs nothing per frame. Each star gets its own duration and a negative delay
+   so they start out of phase, which is what makes the flashing read as
+   independent rather than as a pulse the whole map shares.
+   --------------------------------------------------------------------------- */
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+  38% {
+    opacity: 1;
+  }
+  62% {
+    opacity: 0.66;
+  }
+}
+
+@keyframes star-flare {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  38% {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-twinkle] {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}

@@ -68,6 +68,18 @@ export function Constellations({
   );
 }
 
+/**
+ * Deterministic pseudo-random from a star's own coordinates.
+ *
+ * Not Math.random: this runs during render, and a value that differs between
+ * the server and the client is a hydration mismatch. Same input, same star,
+ * every time.
+ */
+function jitter(x: number, y: number, salt: number): number {
+  const v = Math.sin(x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
 /** The drawn shape: lines first, then stars on top of them. */
 function ConstellationShape({ c, active }: { c: Constellation; active: boolean }) {
   return (
@@ -93,39 +105,52 @@ function ConstellationShape({ c, active }: { c: Constellation; active: boolean }
         />
       ))}
 
-      {c.stars.map((s, i) => (
-        <g key={i}>
-          {/* Bloom, sized off the star's own magnitude. */}
-          <circle
-            cx={s.x}
-            cy={s.y}
-            r={0.001}
-            stroke="currentColor"
-            vectorEffect="non-scaling-stroke"
-            strokeWidth={(active ? 15 : 9) * s.mag}
-            className={
-              active
-                ? "text-ember-400/16 transition-all duration-500 ease-expo"
-                : "text-star/10 transition-all duration-500 ease-expo"
-            }
-            fill="none"
-          />
-          <circle
-            cx={s.x}
-            cy={s.y}
-            r={0.001}
-            stroke="currentColor"
-            vectorEffect="non-scaling-stroke"
-            strokeWidth={(active ? 5.2 : 4.0) * s.mag}
-            className={
-              active
-                ? "text-star transition-all duration-500 ease-expo"
-                : "text-star/85 transition-all duration-500 ease-expo"
-            }
-            fill="none"
-          />
-        </g>
-      ))}
+      {c.stars.map((s, i) => {
+        // Bright stars scintillate slowly, faint ones faster, the way seeing
+        // actually behaves. The negative delay desyncs them from each other.
+        const dur = 2.1 + jitter(s.x, s.y, 1) * 3.6 + s.mag * 1.2;
+        const delay = -jitter(s.x, s.y, 2) * 8;
+
+        return (
+          <g key={i}>
+            {/* Bloom, sized off the star's own magnitude. */}
+            <circle
+              cx={s.x}
+              cy={s.y}
+              r={0.001}
+              stroke="currentColor"
+              vectorEffect="non-scaling-stroke"
+              strokeWidth={(active ? 16 : 10) * s.mag}
+              data-twinkle
+              style={{
+                animation: `star-flare ${dur * 1.15}s ease-in-out ${delay}s infinite`,
+              }}
+              className={
+                active
+                  ? "text-ember-400/22 transition-colors duration-500 ease-expo"
+                  : "text-star/14 transition-colors duration-500 ease-expo"
+              }
+              fill="none"
+            />
+            <circle
+              cx={s.x}
+              cy={s.y}
+              r={0.001}
+              stroke="currentColor"
+              vectorEffect="non-scaling-stroke"
+              strokeWidth={(active ? 5.4 : 4.2) * s.mag}
+              data-twinkle
+              style={{ animation: `star-twinkle ${dur}s ease-in-out ${delay}s infinite` }}
+              className={
+                active
+                  ? "text-star transition-colors duration-500 ease-expo"
+                  : "text-star/90 transition-colors duration-500 ease-expo"
+              }
+              fill="none"
+            />
+          </g>
+        );
+      })}
     </g>
   );
 }

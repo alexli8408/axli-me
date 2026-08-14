@@ -24,13 +24,16 @@ const RADIO = {
 
 /** Quiet enough to sit under a portfolio rather than announce itself. */
 const VOLUME = 32;
-const FADE_MS = 1800;
+/** Long enough that it arrives rather than starts. */
+const FADE_MS = 3200;
 const STORAGE_KEY = "axli:music";
 
 type YTPlayer = {
   playVideo: () => void;
   pauseVideo: () => void;
   setVolume: (v: number) => void;
+  mute: () => void;
+  unMute: () => void;
   destroy: () => void;
 };
 
@@ -39,7 +42,7 @@ type YTOptions = {
   host?: string;
   playerVars?: Record<string, string | number>;
   events?: {
-    onReady?: () => void;
+    onReady?: (e: { target: YTPlayer }) => void;
     onStateChange?: (e: { data: number }) => void;
     onError?: () => void;
   };
@@ -86,27 +89,46 @@ function loadApi(): Promise<void> {
 
 export function Radio({ start, visible }: { start: boolean; visible: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null);
+  /**
+   * The wrapper, which survives. The API replaces the host div with its iframe,
+   * so anything written to that one after the player is built goes onto a node
+   * that is no longer in the document.
+   */
+  const wrapRef = useRef<HTMLDivElement>(null);
   const player = useRef<YTPlayer | null>(null);
   const fade = useRef(0);
   const armed = useRef(false);
+  /** Set when a fade is owed, cleared once sound has actually started. */
+  const owed = useRef(true);
 
   const [playing, setPlaying] = useState(false);
   const [broken, setBroken] = useState(false);
 
-  /** Ramp in rather than cut in, so nothing lands on anyone like a slap. */
-  const rampTo = useCallback((to: number) => {
+  /**
+   * Come up from silence, and get there slowly.
+   *
+   * Eased rather than linear. Loudness is not linear in the number you hand a
+   * volume control, so a straight ramp is most of the way to full before it
+   * feels like it has started. Squaring it keeps the first second genuinely
+   * faint, which is the difference between music arriving and music starting.
+   */
+  const fadeIn = useCallback(() => {
     const p = player.current;
     if (!p) return;
     cancelAnimationFrame(fade.current);
 
-    const from = to > 0 ? 0 : VOLUME;
+    p.setVolume(0);
     const t0 = performance.now();
     const step = (now: number) => {
       const u = Math.min(1, (now - t0) / FADE_MS);
-      p.setVolume(from + (to - from) * u);
+      const v = VOLUME * u * u;
+      p.setVolume(v);
+      // Mirrored onto the host element so the ramp can be watched from
+      // outside. The player's own volume is behind a cross-origin iframe and
+      // there is otherwise no way to tell a working fade from a broken one.
+      if (wrapRef.current) wrapRef.current.dataset.volume = v.toFixed(1);
       if (u < 1) fade.current = requestAnimationFrame(step);
     };
-    p.setVolume(from);
     fade.current = requestAnimationFrame(step);
   }, []);
 
@@ -126,7 +148,13 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
       // tracking cookie by a third party for the privilege of reading a CV.
       host: "https://www.youtube-nocookie.com",
       playerVars: {
-        autoplay: 1,
+        // Both deliberate. Autoplay would let YouTube start the stream the
+        // instant the player is ready, which can beat the setVolume(0) below
+        // and put out a burst at whatever the default level is: exactly the
+        // thing this is supposed to avoid. Starting muted and silent, then
+        // unmuting once the volume is known to be zero, makes that impossible.
+        autoplay: 0,
+        mute: 1,
         controls: 0,
         disablekb: 1,
         modestbranding: 1,
@@ -135,35 +163,62 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
         origin: window.location.origin,
       },
       events: {
-        onReady: () => {
-          rampTo(VOLUME);
-          player.current?.playVideo();
+        // The player comes from the event, not from the ref.
+        //
+        // onReady can fire before `new YT.Player(...)` has returned, so the ref
+        // is still null when this runs and every call through it hit the null
+        // guard and did nothing. That was true of the old code too. It was
+        // invisible only because autoplay was on, so the stream played whether
+        // or not any of this worked, and the volume ramp never ran at all.
+        onReady: (e) => {
+          player.current = e.target;
+          e.target.setVolume(0);
+          e.target.unMute();
+          e.target.playVideo();
         },
-        // 1 is playing, 3 is buffering. Anything else is not making a sound.
-        onStateChange: (e) => setPlaying(e.data === 1 || e.data === 3),
+        onStateChange: (e) => {
+          // 1 is playing, 3 is buffering. Anything else is not making a sound.
+          setPlaying(e.data === 1 || e.data === 3);
+
+          // The fade starts here rather than at onReady, because ready only
+          // means the player will accept commands. A livestream then spends a
+          // few seconds buffering, and a ramp started before any of that is
+          // over long before there is anything to hear, which is a fade that
+          // does nothing. This is the first frame with actual sound in it.
+          if (e.data === 1 && owed.current) {
+            owed.current = false;
+            fadeIn();
+          }
+        },
         onError: () => setBroken(true),
       },
     });
-  }, [rampTo]);
+  }, [fadeIn]);
 
   /**
    * Start on the way in.
    *
-   * Browsers refuse to play audio until the page has been interacted with, and
-   * the shutter button is that interaction. Once a document has been clicked
-   * the permission sticks, so this does not have to happen inside the handler
-   * itself and can wait for the API to arrive over the network.
+   * Nothing exists until the shutter is pressed. No player, no iframe, no
+   * request to anyone, and so no possibility of a sound on arrival. Browsers
+   * refuse to play audio until a page has been interacted with anyway, and the
+   * shutter button is that interaction; once a document has been clicked the
+   * permission sticks, so this can wait for the API to come over the network
+   * rather than having to run inside the handler.
    */
   useEffect(() => {
     if (!start || armed.current) return;
     armed.current = true;
     if (window.localStorage?.getItem(STORAGE_KEY) === "off") return;
 
-    // Held off the commit rather than fired from it. Building an iframe and
-    // fetching a third party script at the exact moment the shutter goes would
-    // be competing with the zoom for the same frames, and the API takes a few
-    // hundred milliseconds to arrive anyway, so the sound comes up around the
-    // time the picture reaches the edges instead of during the scramble.
+    // Held off the commit rather than fired from it, so building an iframe and
+    // parsing a third party script is not competing with the zoom for the same
+    // frames.
+    //
+    // Cutting this to 180ms was tried and reverted. It does not move the time
+    // to first sound at all, which is around five seconds either way and is
+    // spent on the script arriving, the player coming up and a livestream
+    // buffering, none of which is ours. It does put the script parse inside the
+    // zoom. So this buys smoother frames for nothing.
     const t = window.setTimeout(() => void build(), 600);
     return () => clearTimeout(t);
   }, [start, build]);
@@ -184,10 +239,11 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
       return;
     }
     if (playing) {
+      cancelAnimationFrame(fade.current);
       player.current.pauseVideo();
       window.localStorage?.setItem(STORAGE_KEY, "off");
     } else {
-      rampTo(VOLUME);
+      owed.current = true;
       player.current.playVideo();
       window.localStorage?.removeItem(STORAGE_KEY);
     }
@@ -199,7 +255,11 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
         The player itself. Off screen rather than display:none, because a
         display:none iframe is not guaranteed to be allowed to make a sound.
       */}
-      <div aria-hidden className="pointer-events-none fixed -left-[9999px] top-0 h-1 w-1">
+      <div
+        ref={wrapRef}
+        aria-hidden
+        className="pointer-events-none fixed top-0 -left-[9999px] h-1 w-1"
+      >
         <div ref={hostRef} />
       </div>
 

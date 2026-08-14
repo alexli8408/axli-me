@@ -71,12 +71,21 @@ export const identity = {
     after: "| SWE Intern @ Del-Coin Holdings Inc.",
   },
   school: {
-    /**
-     * Set as the wordmark: the words alone, in white, no shield. Typography
-     * rather than an image, so it stays crisp at any size, needs no asset, and
-     * carries none of the crest's trademark with it.
-     */
     name: "University of Waterloo",
+    /**
+     * The real lockup: shield and wordmark, white text, transparent
+     * background. Drop the file at public/marks/waterloo.png (or .svg) and set
+     * this to "/marks/waterloo.png".
+     *
+     * A path rather than a bare <img> with an onError fallback, because a path
+     * that is not there yet would still be requested, which is a 404 on every
+     * page load. Until it is set the name is drawn as type instead: white,
+     * heavier and tighter than the line around it, which reads as a wordmark
+     * even without the shield.
+     */
+    mark: undefined as string | undefined,
+    /** Rendered height in px. The width follows the file's own ratio. */
+    markHeight: 22,
   },
   /** Plain text form, used for <title>, og:title, and the JSON-LD Person. */
   tagline: "Computer Engineering @ University of Waterloo",

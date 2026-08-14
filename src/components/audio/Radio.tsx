@@ -26,33 +26,41 @@ const RADIO = {
 /** Quiet enough to sit under a portfolio rather than announce itself. */
 const VOLUME = 32;
 /** Long enough that it arrives rather than starts. */
-const FADE_MS = 3200;
+const FADE_MS = 6000;
 /** Short, but not a cut. A cut is what makes the click. */
 const FADE_OUT_MS = 420;
 
 /**
- * How far below the target the fade begins, in decibels.
+ * The onset: how long to spend crossing the four quietest steps, and where it
+ * hands over to the long fade.
  *
  * The player takes a whole number from 0 to 100, so a fade to 32 has 32 steps
- * and no more. Spacing them evenly in amplitude, which is what any straight or
- * eased ramp does, puts nearly every audible change in the first moment: 1 to 2
- * is six decibels, 16 to 32 is also six, so the front of the fade lurches and
- * the back of it does nothing. Spacing them evenly in decibels instead is what
- * a fade actually sounds like.
- *
- * The range has to be shallow for the same reason. Starting 34dB down means
- * starting at volume 1, and the climb out of 1 goes 1, 2, 3, which is plus six
- * decibels then plus three and a half, each held for hundreds of milliseconds:
- * the coarsest steps the control has, laid out slowly enough to count. Starting
- * 20dB down begins at 3 instead, so no step in the whole fade is more than two
- * and a half decibels and most are well under one.
+ * and no more, and the bottom few are the coarsest thing it can do: 1 to 2 is
+ * six decibels, 2 to 3 is three and a half. Nothing can make those small. What
+ * can be done is get through them fast enough that they blur into an onset
+ * rather than being laid out slowly enough to count individually, which is what
+ * both of the earlier curves did and why the front of the fade kept sounding
+ * like a step no matter how the easing was shaped.
  */
-const FADE_FLOOR_DB = 20;
+const ONSET_MS = 150;
+const ONSET_LEVEL = 4;
 
-/** The volume to ask for at u through a fade, as a whole number. */
-function rampLevel(u: number): number {
-  const db = -FADE_FLOOR_DB * (1 - u);
-  return Math.max(1, Math.round(VOLUME * Math.pow(10, db / 20)));
+/**
+ * The volume to ask for, as a whole number, this far into a fade.
+ *
+ * Two parts. Straight up through the coarse steps, then evenly spaced in
+ * decibels the rest of the way, which is what a fade actually sounds like: an
+ * even spacing in amplitude would put nearly every audible change in the first
+ * moment, since 1 to 2 and 16 to 32 are both six decibels.
+ */
+function rampLevel(ms: number): number {
+  if (ms <= 0) return 1;
+  if (ms < ONSET_MS) {
+    return Math.max(1, Math.round(1 + (ONSET_LEVEL - 1) * (ms / ONSET_MS)));
+  }
+  const u = Math.min(1, (ms - ONSET_MS) / (FADE_MS - ONSET_MS));
+  const floorDb = 20 * Math.log10(ONSET_LEVEL / VOLUME);
+  return Math.round(VOLUME * Math.pow(10, (floorDb * (1 - u)) / 20));
 }
 const STORAGE_KEY = "axli:music";
 
@@ -184,9 +192,9 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
 
     const t0 = performance.now();
     const step = (now: number) => {
-      const u = Math.min(1, (now - t0) / FADE_MS);
-      set(rampLevel(u));
-      if (u < 1) fade.current = requestAnimationFrame(step);
+      const ms = now - t0;
+      set(rampLevel(ms));
+      if (ms < FADE_MS) fade.current = requestAnimationFrame(step);
     };
     fade.current = requestAnimationFrame(step);
   }, []);
@@ -208,9 +216,9 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
     let sent = -1;
     const step = (now: number) => {
       const u = Math.min(1, (now - t0) / FADE_OUT_MS);
-      // Down the same decibel scale it came up, so it thins out rather than
-      // dropping through the loud half in the first fifty milliseconds.
-      const v = u >= 1 ? 0 : Math.max(0, Math.round(from * Math.pow(10, (-FADE_FLOOR_DB * u) / 20)));
+      // Down a decibel scale, so it thins out rather than dropping through the
+      // loud half in the first fifty milliseconds.
+      const v = u >= 1 ? 0 : Math.max(0, Math.round(from * Math.pow(10, (-24 * u) / 20)));
       level.current = v;
       if (v !== sent) {
         sent = v;

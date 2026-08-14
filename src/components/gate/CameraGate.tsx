@@ -26,8 +26,17 @@ export const CAMERA = {
    */
   lensX: 237.5 / 480,
   lensY: 145.05 / 300,
-  /** What the camera is doing when the shutter fires. */
-  pushed: { scale: 2.15, lift: -22 },
+  /**
+   * What the camera is doing when the shutter fires.
+   *
+   * lift is 0 and has to stay that way. The transform scales about the bottom
+   * of the window, so the arms run off the bottom edge and read as arms. Any
+   * lift moves the whole drawing up and leaves a strip of sky under them: at
+   * -22 the arms stopped 22px short of the edge and the pair turned into two
+   * hands floating on their own. The camera reaches the eye by growing, which
+   * is what a camera coming toward you does anyway.
+   */
+  pushed: { scale: 2.15, lift: 0 },
 } as const;
 
 /**

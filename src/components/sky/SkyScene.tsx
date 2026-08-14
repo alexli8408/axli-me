@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CAMERA, CameraGate, type GatePhase } from "@/components/gate/CameraGate";
+import { CameraGate, type GatePhase } from "@/components/gate/CameraGate";
 import { useSectionOverlays } from "@/components/overlay/SectionOverlays";
 import { Constellations } from "./Constellations";
 import { StarField, type SkyView } from "./StarField";
@@ -9,57 +9,25 @@ import { StarField, type SkyView } from "./StarField";
 /** The camera rises on load, then the visitor drives the rest. */
 const RISE_MS = 1500;
 const PUSH_MS = 820;
-const SHUTTER_MS = 230;
-/**
- * How long to wait, once the shutter fires, before shrinking the sky.
- *
- * The flash needs to be all the way up first. React has to render, the browser
- * has to apply the style and start the transition, and only then does the white
- * climb: measured, it is opaque around 60ms in. Snapping the moment the phase
- * changed put the collapse on screen at about a third of a flash, so you saw
- * the sky drop into a small rectangle instead of a photograph being taken.
- */
-const SNAP_MS = 100;
-const ZOOM_MS = 1250;
+const SHUTTER_MS = 190;
+const ZOOM_MS = 1500;
 
-/**
- * How small the photo is when it lands, as a fraction of the finished sky.
- *
- * At 0.075 the frame is about the width of the glass it came out of, which is
- * the whole point: the thing that grows on screen has to be the same thing that
- * was sitting in the lens a moment earlier.
- */
-const PHOTO_SCALE = 0.075;
-
-/** The sky sits slightly pushed in behind the viewfinder, then settles back. */
+/** The sky behind the camera sits slightly pushed in, then settles back. */
 const GATE_SCALE = 1.16;
 
 /**
- * Where the lens is, in fractions of the viewport, at the moment the shutter
- * fires.
+ * Smallest the sky inside the frame is ever drawn.
  *
- * This repeats the arithmetic the camera's own layout and transform do rather
- * than measuring a rect, since the measurement would have to happen mid
- * transition. The constants come from CAMERA, so the two cannot drift apart.
+ * Left to itself the picture would be scaled just far enough to fill whatever
+ * aperture it has, and inside a lens the size of a coin that means the whole
+ * field compressed about ten times over: stars land on each other and it reads
+ * as noise. Holding it here crops instead, so what sits in the glass is the
+ * middle of the sky rather than all of it at once.
  */
-function lensCentre(): { ox: number; oy: number } {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+const MIN_PHOTO_SCALE = 0.34;
 
-  const h = CAMERA.heightFraction * vh;
-  const w = h * CAMERA.aspect;
-
-  // Where the lens sits before the camera is transformed.
-  const x = (vw - w) / 2 + CAMERA.lensX * w;
-  const y = vh - h + CAMERA.lensY * h;
-
-  // The camera scales about the bottom centre of the viewport, then lifts.
-  const { scale, lift } = CAMERA.pushed;
-  return {
-    ox: (vw / 2 + scale * (x - vw / 2)) / vw,
-    oy: (vh + scale * (y - vh) + lift) / vh,
-  };
-}
+/** How far inside the rim the picture sits, so the glass keeps an edge. */
+const APERTURE_INSET = 0.9;
 
 export function SkyScene() {
   const [phase, setPhase] = useState<GatePhase>("rise");
@@ -67,41 +35,58 @@ export function SkyScene() {
   const { open, notifyReady } = useSectionOverlays();
   const timers = useRef<number[]>([]);
 
-  const skyRef = useRef<HTMLDivElement>(null);
+  const lensRef = useRef<SVGCircleElement>(null);
   const wakeRef = useRef<(() => void) | null>(null);
-  const frame = useRef(0);
+  const phaseRef = useRef<GatePhase>(phase);
+  const zoomFrom = useRef<{ cx: number; cy: number; r: number } | null>(null);
   /** Shared with the canvas, which reads it fresh every frame. */
-  const view = useRef<SkyView>({ s: GATE_SCALE, ox: 0.5, oy: 0.5 });
+  const view = useRef<SkyView>({ ambient: GATE_SCALE, dim: true, photo: null });
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   /**
-   * Clip the sky down to the photo.
+   * Where the picture is and how big, for one frame.
    *
-   * Each inset is that edge's distance from the lens times (1 - s), which is
-   * exactly the rectangle you get by scaling the viewport about the lens. The
-   * canvas scales its contents about the same point by the same amount, so the
-   * frame and the stars inside it are one movement rather than two that have to
-   * be kept in step. That was the thing that was wrong before: the sky zoomed on
-   * its own schedule and never felt like it was inside the picture. At s of 1 or
-   * more there is nothing to clip.
+   * u runs 0 to 1 across the zoom and is 0 for every phase before it. The
+   * aperture is a rounded rectangle the whole way, which is what lets a circle
+   * become a frame without ever swapping shapes: a square with a corner radius
+   * of half its side is a circle, so easing width, height and radius together
+   * opens one into the other.
    */
-  const clip = useCallback(() => {
-    const el = skyRef.current;
-    if (!el) return;
+  const place = useCallback((u: number) => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
-    const { s, ox, oy } = view.current;
-    const k = 1 - s;
-    if (k <= 0.001) {
-      el.style.clipPath = "none";
+    const start = zoomFrom.current ?? readLens(lensRef.current);
+    if (!start) {
+      view.current.photo = null;
       return;
     }
 
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const px = (n: number) => `${n.toFixed(1)}px`;
-    el.style.clipPath =
-      `inset(${px(oy * vh * k)} ${px((1 - ox) * vw * k)} ` +
-      `${px((1 - oy) * vh * k)} ${px(ox * vw * k)} ` +
-      `round ${px(Math.min(1, k * 4) * 9)})`;
+    // Smooth at both ends. It has to leave the glass without a jerk and reach
+    // the edges of the window without slamming into them.
+    const e = u * u * (3 - 2 * u);
+    const lerp = (a: number, b: number) => a + (b - a) * e;
+
+    const d = start.r * 2;
+    const w = lerp(d, vw);
+    const h = lerp(d, vh);
+    const cx = lerp(start.cx, vw / 2);
+    const cy = lerp(start.cy, vh / 2);
+
+    view.current.photo = {
+      scale: Math.max(MIN_PHOTO_SCALE, w / vw, h / vh),
+      x: cx - w / 2,
+      y: cy - h / 2,
+      w,
+      h,
+      // Squares off ahead of the rest, so it reads as a frame well before it
+      // reaches the corners instead of staying rounded to the last moment.
+      r: start.r * Math.max(0, 1 - Math.min(1, e * 1.45)),
+      full: u >= 1,
+    };
   }, []);
 
   // Timers are scheduled in one go rather than from an effect keyed on phase.
@@ -126,62 +111,50 @@ export function SkyScene() {
   }, []);
 
   /**
-   * The photo.
+   * One loop for the whole sequence.
    *
-   * On the shutter the sky snaps from full screen down to a frame the size of
-   * the glass. That jump is instant and it happens underneath the flash, which
-   * is at full white for those few frames, so what the visitor sees is a
-   * picture being taken. Then the frame grows back out to the whole window,
-   * carrying its stars with it.
+   * Before the shutter it follows the lens, which is moving under a CSS
+   * transition this has no way to read, so it measures rather than predicts.
+   * From the shutter on, the lens is frozen where the exposure happened and the
+   * loop drives the opening instead.
    */
   useEffect(() => {
-    if (phase === "shutter") {
-      const t = window.setTimeout(() => {
-        view.current = { s: PHOTO_SCALE, ...lensCentre() };
-        clip();
-        wakeRef.current?.();
-      }, SNAP_MS);
-      return () => clearTimeout(t);
-    }
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    let zoomStart = 0;
 
-    if (phase === "ready") {
-      view.current.s = 1;
-      clip();
-      wakeRef.current?.();
-      return;
-    }
-
-    if (phase !== "zoom") return;
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      view.current.s = 1;
-      clip();
-      wakeRef.current?.();
-      return;
-    }
-
-    const from = view.current.s;
-    const start = performance.now();
     const step = (now: number) => {
-      const u = Math.min(1, (now - start) / ZOOM_MS);
-      // Interpolated in log space, not linearly. Scale is multiplicative, so
-      // stepping it evenly makes a zoom that crawls at the start and tears
-      // through the end, and going up by a constant ratio instead is what reads
-      // as a steady push in.
-      //
-      // Eased out only, never in. An ease on both sides held the frame at lens
-      // size for most of a second after the flash had already cleared, so there
-      // was a beat of staring at a stamp before anything happened.
-      const eased = 1 - Math.pow(1 - u, 1.6);
-      view.current.s = u === 1 ? 1 : Math.pow(from, 1 - eased);
-      clip();
+      const p = phaseRef.current;
+
+      // The sky behind stays knocked back for the whole sequence. Letting it
+      // back up to full while the picture was still opening put the brightest
+      // thing on screen everywhere except inside the frame, which is backwards:
+      // the photograph is the subject. By the time this turns off, the frame
+      // covers the window and there is nothing behind it to see anyway.
+      view.current.dim = p !== "ready";
+
+      if (p === "ready") {
+        place(1);
+        wakeRef.current?.();
+        return;
+      }
+
+      if (p === "zoom") {
+        if (!zoomStart) zoomStart = now;
+        place(reduced ? 1 : Math.min(1, (now - zoomStart) / ZOOM_MS));
+      } else {
+        // Still following the glass.
+        zoomFrom.current = p === "shutter" ? readLens(lensRef.current) : null;
+        place(0);
+      }
+
       wakeRef.current?.();
-      if (u < 1) frame.current = requestAnimationFrame(step);
+      raf = requestAnimationFrame(step);
     };
 
-    frame.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame.current);
-  }, [phase, clip]);
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [place]);
 
   useEffect(() => {
     if (phase === "ready") notifyReady();
@@ -194,29 +167,19 @@ export function SkyScene() {
     [],
   );
 
-  const entering = phase === "zoom" || phase === "ready";
-
   return (
     <main
       className="relative h-svh w-full overflow-hidden bg-sky-950"
       data-motion={motion ? "on" : "off"}
     >
-      {/*
-        The sky, which is also the photograph. It rises above the camera once
-        the shutter has gone, because until then the print would be growing out
-        of the back of the body that took it.
-      */}
-      <div
-        ref={skyRef}
-        className="absolute inset-0"
-        style={{ zIndex: entering ? 30 : 0 }}
-      >
-        <StarField dim={!entering} paused={!motion} view={view} wakeRef={wakeRef} />
-      </div>
+      {/* The sky and the photograph of it are the same canvas, and it stays
+          under the camera the whole way through, so the picture grows out of
+          the glass while the camera dissolves off it. */}
+      <StarField paused={!motion} view={view} wakeRef={wakeRef} />
 
       <Constellations onOpen={open} revealed={phase === "ready"} />
 
-      <CameraGate phase={phase} onEnter={enter} />
+      <CameraGate phase={phase} onEnter={enter} lensRef={lensRef} />
 
       {/*
         WCAG 2.2.2. The field twinkles and throws meteors for as long as the tab
@@ -248,4 +211,16 @@ export function SkyScene() {
       </button>
     </main>
   );
+}
+
+/** Where the glass is on screen right now, in viewport pixels. */
+function readLens(el: SVGCircleElement | null) {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  if (!r.width) return null;
+  return {
+    cx: r.x + r.width / 2,
+    cy: r.y + r.height / 2,
+    r: (r.width / 2) * APERTURE_INSET,
+  };
 }

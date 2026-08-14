@@ -33,9 +33,10 @@ export const CAMERA = {
  * The way in.
  *
  * rise     hands come up from below holding the camera
- * gate     settled, viewfinder framing the sky, waiting for the visitor
- * push     the camera comes to the eye, the frame opening as it approaches
+ * gate     settled, the sky live in the glass, waiting for the visitor
+ * push     the camera comes to the eye
  * shutter  the flash, one white blink
+ * zoom     the picture in the lens opens out until it is the whole window
  * zoom     into the photo, which is the star map
  *
  * The gate is not only decoration. Browsers refuse to play audio until the page
@@ -45,9 +46,12 @@ export const CAMERA = {
 export function CameraGate({
   phase,
   onEnter,
+  lensRef,
 }: {
   phase: GatePhase;
   onEnter: () => void;
+  /** Handed through to the glass, so the sky can measure where it is. */
+  lensRef?: React.Ref<SVGCircleElement>;
 }) {
   const rising = phase === "rise";
   const pushing = phase === "push" || phase === "shutter";
@@ -67,33 +71,12 @@ export function CameraGate({
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
-      {/* --- viewfinder --- */}
-      <div
-        aria-hidden
-        className="absolute left-1/2"
-        style={{
-          top: "19%",
-          width: past ? "170%" : pushing ? "78%" : "38%",
-          height: past ? "170%" : pushing ? "56%" : "27%",
-          opacity: rising || past ? 0 : 1,
-          // Tailwind v4 emits a standalone `translate` property, which composes
-          // with `transform` rather than being overridden by it, so the
-          // centring is done here and nowhere else.
-          transform: `translate(-50%, ${past ? "-24%" : "0"})`,
-          transitionProperty: "width, height, opacity, transform",
-          transitionDuration: past ? "1150ms" : pushing ? "780ms" : "700ms",
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
-        <Viewfinder pushing={pushing} />
-      </div>
-
       {/*
         Paint order matters here and it is not the order these were written in.
         The title goes under the camera: it fades over 800ms while the camera
         pushes up over it, and on top it showed straight through the body. The
-        shutter goes over everything, since a flash the hands show through is
-        not a flash.
+        flash goes over everything, since a flash the hands show through is not
+        a flash.
       */}
 
       {/* --- title and the way in --- */}
@@ -143,12 +126,12 @@ export function CameraGate({
             : pushing
               ? "820ms"
               : past
-                ? "620ms"
+                ? "540ms"
                 : "1400ms",
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        <HandsWithCamera className="h-[46svh] w-auto text-[#01030a]" />
+        <HandsWithCamera className="h-[46svh] w-auto text-[#01030a]" lensRef={lensRef} />
       </div>
 
       {/* --- shutter: one white blink, over everything ---
@@ -165,23 +148,6 @@ export function CameraGate({
           }`,
         }}
       />
-    </div>
-  );
-}
-
-/** Corner brackets and a reticle, the way a viewfinder marks its frame. */
-function Viewfinder({ pushing }: { pushing: boolean }) {
-  const corner = `absolute h-7 w-7 transition-colors duration-500 ${
-    pushing ? "border-ember-400" : "border-ember-400/70"
-  }`;
-  return (
-    <div className="relative h-full w-full">
-      <span className={`${corner} top-0 left-0 border-t border-l`} />
-      <span className={`${corner} top-0 right-0 border-t border-r`} />
-      <span className={`${corner} bottom-0 left-0 border-b border-l`} />
-      <span className={`${corner} right-0 bottom-0 border-b border-r`} />
-      <span className="absolute top-1/2 left-1/2 h-3 w-px -translate-x-1/2 -translate-y-1/2 bg-ember-400/40" />
-      <span className="absolute top-1/2 left-1/2 h-px w-3 -translate-x-1/2 -translate-y-1/2 bg-ember-400/40" />
     </div>
   );
 }

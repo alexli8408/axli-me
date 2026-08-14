@@ -10,7 +10,8 @@ type FieldStar = {
   rate: number;
   phase: number;
   depth: number;
-  col: [number, number, number];
+  /** Index into STAR_COLOURS, so the bloom sprite can be looked up. */
+  col: number;
 };
 
 type Nebula = {
@@ -27,8 +28,35 @@ type Nebula = {
 
 type Shooter = { x: number; y: number; vx: number; vy: number; life: number; max: number };
 
-/** Scale s about the point (ox, oy), both fractions of the canvas. */
-export type SkyView = { s: number; ox: number; oy: number };
+/**
+ * The photograph: a window onto the same sky, at its own scale.
+ *
+ * It is a real thing on screen from the first frame, sitting in the glass of
+ * the lens, and the shutter does not create it. All the shutter does is start
+ * it opening out. That continuity is the point: a picture that appears out of
+ * nowhere after a flash is two events, and a picture that was already in the
+ * lens and then grows is one.
+ */
+export type SkyPhoto = {
+  /** How compressed the sky is inside the frame. 1 is life size. */
+  scale: number;
+  /** Frame in canvas pixels. A square with a radius of half its side is a circle. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  r: number;
+  /** Once the frame covers the window there is no point drawing anything under it. */
+  full: boolean;
+};
+
+export type SkyView = {
+  /** Scale of the sky behind the camera, about the middle of the window. */
+  ambient: number;
+  /** Knocked back while the camera is still up, so the picture in the lens reads. */
+  dim: boolean;
+  photo: SkyPhoto | null;
+};
 
 /** Real star colours run from cool blue-white through to warm amber. */
 const STAR_COLOURS: [number, number, number][] = [
@@ -42,31 +70,50 @@ const STAR_COLOURS: [number, number, number][] = [
   [231, 190, 255],
 ];
 
+const BLOOM_PX = 64;
+
 /**
- * Background sky: nebulae, a galactic band, stars, and the occasional meteor.
+ * One soft disc per star colour, drawn once and stamped thereafter.
  *
- * Canvas 2D. The interactive constellations are real SVG elements on top of
- * this, so nothing here needs to be clicked, focused or read, and the two
- * halves never have to know about each other.
+ * About a fifth of the field is bright enough to bloom, which was a
+ * createRadialGradient per star per frame: a hundred and some gradient objects
+ * built and thrown away sixty times a second, and double that now the sky is
+ * drawn twice, once behind the camera and once inside the lens. Stamping a
+ * sprite costs nothing by comparison.
+ */
+function bloomSprites(): HTMLCanvasElement[] {
+  return STAR_COLOURS.map(([r, g, b]) => {
+    const c = document.createElement("canvas");
+    c.width = c.height = BLOOM_PX;
+    const x = c.getContext("2d");
+    if (!x) return c;
+    const mid = BLOOM_PX / 2;
+    const grad = x.createRadialGradient(mid, mid, 0, mid, mid, mid);
+    grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
+    grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+    x.fillStyle = grad;
+    x.fillRect(0, 0, BLOOM_PX, BLOOM_PX);
+    return c;
+  });
+}
+
+/**
+ * Background sky, and the photograph of it.
+ *
+ * Canvas 2D. The interactive constellations are real DOM on top of this, so
+ * nothing here needs to be clicked, focused or read.
  *
  * The nebulae are what stop this reading as black with white dots. They are
- * drawn in "lighter" so overlapping clouds add rather than occlude, which is
- * how emission nebulae actually photograph on a long exposure.
+ * drawn additively so overlapping clouds add rather than occlude, which is how
+ * emission nebulae actually photograph on a long exposure.
  */
 export function StarField({
-  dim = false,
   paused = false,
   view,
   wakeRef,
 }: {
-  dim?: boolean;
   paused?: boolean;
-  /**
-   * How the sky is framed, read fresh every frame. s is the scale about
-   * (ox, oy), both fractions of the canvas. s below 1 shrinks the whole field
-   * toward that point, which is what makes it a photo small enough to sit in
-   * the lens; s of 1 is the sky at life size.
-   */
+  /** Read fresh every frame, so the caller can drive it without re-rendering. */
   view?: React.RefObject<SkyView>;
   /** Filled with a function that asks for one frame, for when the loop is idle. */
   wakeRef?: React.RefObject<(() => void) | null>;
@@ -87,9 +134,9 @@ export function StarField({
     viewRef.current = view;
   }, [view]);
 
-  // Hand the caller a way to ask for a frame. It matters when the loop is
-  // idle, which is any time the sky is paused or motion is reduced: the view
-  // can still change under it and nothing would redraw.
+  // Hand the caller a way to ask for a frame. It matters when the loop is idle,
+  // which is any time the sky is paused or motion is reduced: the view can
+  // still change under it and nothing would redraw.
   useEffect(() => {
     const slotRef = wakeRef;
     if (!slotRef) return;
@@ -106,6 +153,7 @@ export function StarField({
     if (!ctx) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const blooms = bloomSprites();
 
     let w = 0;
     let h = 0;
@@ -120,13 +168,10 @@ export function StarField({
     let clock = 0;
 
     const build = () => {
-      // offsetWidth, not getBoundingClientRect. The sky sits inside a wrapper
-      // that scales during the push into the photo, and a bounding rect
-      // includes ancestor transforms, so this built a 1670x1044 backing store
-      // for a 1440x900 box. ResizeObserver watches the untransformed border
-      // box, so it never fired again to correct it: the field stayed at the
-      // wrong resolution, the galactic band came out at the wrong angle for
-      // the box it ended up in, and the bottom right corner never painted.
+      // offsetWidth, not getBoundingClientRect. A bounding rect includes
+      // ancestor transforms, and this used to sit inside a wrapper that scaled,
+      // so it built a 1670x1044 backing store for a 1440x900 box. The observer
+      // watches the untransformed border box and never fired to correct it.
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       w = Math.max(1, canvas.offsetWidth || Math.round(canvas.getBoundingClientRect().width));
       h = Math.max(1, canvas.offsetHeight || Math.round(canvas.getBoundingClientRect().height));
@@ -166,7 +211,7 @@ export function StarField({
           rate: 0.4 + Math.random() * 1.7,
           phase: Math.random() * Math.PI * 2,
           depth,
-          col: STAR_COLOURS[(Math.random() * STAR_COLOURS.length) | 0],
+          col: (Math.random() * STAR_COLOURS.length) | 0,
         };
       });
 
@@ -180,41 +225,22 @@ export function StarField({
       ];
     };
 
-    const draw = (t: number) => {
-      const frameDt = last ? Math.min(0.05, (t - last) / 1000) : 0.016;
-      last = t;
-      // The clock only advances when running, so a pause freezes the sky where
-      // it stands and resuming picks the phase back up rather than snapping to
-      // wherever a wall clock had got to.
-      const held = isPaused.current;
-      const dt = held ? 0 : frameDt;
-      clock += dt;
-      const time = clock;
-
-      ctx.globalCompositeOperation = "source-over";
-
-      // Anything the frame does not cover is never seen, because the sky layer
-      // is clipped to the photo. Painting it flat first just means the canvas
-      // is never showing a stale frame out there.
-      ctx.fillStyle = "#04070f";
-      ctx.fillRect(0, 0, w, h);
-
-      // The whole sky, gradient included, scales together. The gradient used to
-      // sit outside this, which was fine while the scale only ever grew, but a
-      // photo small enough to fit in a lens would have shown a flat wash behind
-      // its stars instead of the sky compressed with them.
-      const v = viewRef.current?.current;
-      const s = v ? v.s : 1;
-
-      ctx.save();
-      if (Math.abs(s - 1) > 0.0005) {
-        const ox = (v?.ox ?? 0.5) * w;
-        const oy = (v?.oy ?? 0.5) * h;
-        ctx.translate(ox, oy);
-        ctx.scale(s, s);
-        ctx.translate(-ox, -oy);
-      }
-
+    /**
+     * One pass of sky, in whatever transform is already on the context.
+     *
+     * detail drops the expensive parts when the sky is drawn small enough that
+     * nobody could see them. Inside the lens a star's bloom is a fraction of a
+     * pixel, and paying for it twice a frame is the difference between this
+     * being free and being felt.
+     *
+     * scale is what the context is about to shrink everything by, and stars
+     * divide it back out. Positions compress, sizes do not. Scaled honestly
+     * they land at a third of a pixel and the glass reads as empty, and it is
+     * also just wrong: a wider lens packs more stars into the frame, it does
+     * not make each one smaller. They are points of light either way.
+     */
+    const paintSky = (time: number, detail: boolean, meteors: boolean, scale = 1) => {
+      const keep = 1 / scale;
       const base = ctx.createLinearGradient(0, h, 0, 0);
       base.addColorStop(0, "#0a0f22");
       base.addColorStop(0.5, "#060a18");
@@ -255,26 +281,57 @@ export function StarField({
 
         const x = s.x + (reduced ? 0 : Math.sin(time * 0.03 + s.phase) * s.depth * 7);
         const alpha = Math.max(0, s.b * flicker);
-        const [r, g, b] = s.col;
+        const [r, g, b] = STAR_COLOURS[s.col];
 
         ctx.beginPath();
-        ctx.arc(x, s.y, s.r, 0, Math.PI * 2);
+        ctx.arc(x, s.y, s.r * keep, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         ctx.fill();
 
-        if (s.depth > 0.8) {
-          const bloom = ctx.createRadialGradient(x, s.y, 0, x, s.y, s.r * 9);
-          bloom.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha * 0.3})`);
-          bloom.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-          ctx.fillStyle = bloom;
-          ctx.beginPath();
-          ctx.arc(x, s.y, s.r * 9, 0, Math.PI * 2);
-          ctx.fill();
+        if (detail && s.depth > 0.8) {
+          const rad = s.r * 9 * keep;
+          ctx.globalAlpha = alpha * 0.3;
+          ctx.drawImage(blooms[s.col], x - rad, s.y - rad, rad * 2, rad * 2);
+          ctx.globalAlpha = 1;
         }
       }
 
       // --- meteors, rare enough to feel like luck rather than decoration ---
-      if (!reduced) {
+      if (meteors) {
+        for (const m of shooters) {
+          const fade = Math.sin(Math.min(1, m.life / m.max) * Math.PI);
+          const len = 120 + 90 * fade;
+          const norm = Math.hypot(m.vx, m.vy) || 1;
+          const tx = m.x - (m.vx / norm) * len;
+          const ty = m.y + (m.vy / norm) * len;
+
+          const trail = ctx.createLinearGradient(m.x, m.y, tx, ty);
+          trail.addColorStop(0, `rgba(255, 250, 240, ${0.85 * fade})`);
+          trail.addColorStop(1, "rgba(255, 250, 240, 0)");
+          ctx.strokeStyle = trail;
+          ctx.lineWidth = 1.6 * keep;
+          ctx.beginPath();
+          ctx.moveTo(m.x, m.y);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+        }
+      }
+
+      ctx.globalCompositeOperation = "source-over";
+    };
+
+    const draw = (t: number) => {
+      const frameDt = last ? Math.min(0.05, (t - last) / 1000) : 0.016;
+      last = t;
+      // The clock only advances when running, so a pause freezes the sky where
+      // it stands and resuming picks the phase back up rather than snapping to
+      // wherever a wall clock had got to.
+      const held = isPaused.current;
+      const dt = held ? 0 : frameDt;
+      clock += dt;
+      const time = clock;
+
+      if (!reduced && !held) {
         nextShooter -= dt;
         if (nextShooter <= 0) {
           nextShooter = 3.5 + Math.random() * 7;
@@ -289,33 +346,58 @@ export function StarField({
             max: 0.9 + Math.random() * 0.5,
           });
         }
-
         for (const m of shooters) {
           m.life += dt;
           m.x += m.vx * dt;
           m.y -= m.vy * dt;
-
-          const fade = Math.sin(Math.min(1, m.life / m.max) * Math.PI);
-          const len = 120 + 90 * fade;
-          const norm = Math.hypot(m.vx, m.vy) || 1;
-          const tx = m.x - (m.vx / norm) * len;
-          const ty = m.y + (m.vy / norm) * len;
-
-          const trail = ctx.createLinearGradient(m.x, m.y, tx, ty);
-          trail.addColorStop(0, `rgba(255, 250, 240, ${0.85 * fade})`);
-          trail.addColorStop(1, "rgba(255, 250, 240, 0)");
-          ctx.strokeStyle = trail;
-          ctx.lineWidth = 1.6;
-          ctx.beginPath();
-          ctx.moveTo(m.x, m.y);
-          ctx.lineTo(tx, ty);
-          ctx.stroke();
         }
         shooters = shooters.filter((m) => m.life < m.max);
       }
 
-      ctx.restore();
+      const v = viewRef.current?.current;
+      const photo = v?.photo ?? null;
+      const behind = !photo?.full;
+
       ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "#04070f";
+      ctx.fillRect(0, 0, w, h);
+
+      if (behind) {
+        const a = v?.ambient ?? 1;
+        ctx.save();
+        if (Math.abs(a - 1) > 0.0005) {
+          ctx.translate(w / 2, h / 2);
+          ctx.scale(a, a);
+          ctx.translate(-w / 2, -h / 2);
+        }
+        paintSky(time, true, !reduced);
+        ctx.restore();
+
+        // Knocked back here rather than with a CSS filter, because a filter on
+        // the canvas would take the picture in the lens down with it, and that
+        // picture is meant to be the brightest thing on screen.
+        if (v?.dim) {
+          ctx.fillStyle = "rgba(3, 6, 14, 0.55)";
+          ctx.fillRect(0, 0, w, h);
+        }
+      }
+
+      if (photo) {
+        ctx.save();
+        ctx.beginPath();
+        const r = Math.max(0, Math.min(photo.r, photo.w / 2, photo.h / 2));
+        ctx.roundRect(photo.x, photo.y, photo.w, photo.h, r);
+        ctx.clip();
+
+        // The middle of the frame is the middle of the picture at every size,
+        // so the frame can open out without the image sliding around inside it.
+        ctx.translate(photo.x + photo.w / 2, photo.y + photo.h / 2);
+        ctx.scale(photo.scale, photo.scale);
+        ctx.translate(-w / 2, -h / 2);
+
+        paintSky(time, true, !behind && !reduced, photo.scale);
+        ctx.restore();
+      }
     };
 
     const loop = (t: number) => {
@@ -363,12 +445,5 @@ export function StarField({
     };
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden
-      className="absolute inset-0 h-full w-full transition-all duration-1000 ease-expo"
-      style={{ filter: dim ? "brightness(0.6) saturate(0.75)" : "none" }}
-    />
-  );
+  return <canvas ref={canvasRef} aria-hidden className="absolute inset-0 h-full w-full" />;
 }

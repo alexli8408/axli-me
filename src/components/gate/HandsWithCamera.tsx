@@ -30,7 +30,6 @@
 /** Nearly black. The hands are closest to the viewer, so they take the least sky. */
 const HAND_FILL = "currentColor";
 const TOP_FILL = "#0b1220";
-const GLASS_FILL = "#050910";
 const BARREL_FILL = "#070c16";
 
 const BODY = { x: 150, y: 96, w: 180, h: 96, r: 9 };
@@ -303,7 +302,36 @@ function spineFor(
   ];
 }
 
-export function HandsWithCamera({ className = "" }: { className?: string }) {
+/**
+ * Corner marks inside the glass, on the picture.
+ *
+ * They sit on the corners of the largest square that fits in the circle, which
+ * is where the frame of the shot actually is: what the lens can see is round,
+ * what comes out of it is not.
+ */
+const MARK = 33 * 0.7;
+const MARK_ARM = 7;
+const CORNER_MARKS = [
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
+  [1, 1],
+]
+  .map(([sx, sy]) => {
+    const x = 240 + sx * MARK;
+    const y = 145 + sy * MARK;
+    return `M ${x - sx * 0} ${y + sy * -MARK_ARM} L ${x} ${y} L ${x - sx * MARK_ARM} ${y}`;
+  })
+  .join(" ");
+
+export function HandsWithCamera({
+  className = "",
+  lensRef,
+}: {
+  className?: string;
+  /** The sky measures this to know where to put the picture. */
+  lensRef?: React.Ref<SVGCircleElement>;
+}) {
   const leftWraps = FINGERS;
   // The right index is on the shutter, so it does not also wrap the edge.
   const rightWraps = FINGERS.slice(1);
@@ -338,15 +366,20 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
           <stop offset="52%" stopColor="#060b15" />
           <stop offset="100%" stopColor="#03060d" />
         </linearGradient>
+        {/*
+          The hole for the glass.
+          Setting the glass to fill="none" did nothing, because the body panel
+          and the barrel are both opaque discs underneath it: not filling a
+          shape does not remove what is already painted there. This cuts the
+          circle out of the camera instead, so the sky behind actually shows.
+        */}
+        <mask id="glassHole">
+          <rect x="0" y="0" width="480" height="300" fill="#fff" />
+          <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill="#000" />
+        </mask>
         <radialGradient id="lensGlow">
           <stop offset="35%" stopColor="#7fa6f0" stopOpacity="0.2" />
           <stop offset="100%" stopColor="#7fa6f0" stopOpacity="0" />
-        </radialGradient>
-        {/* Off centre, the way a sky sits in a coated front element. */}
-        <radialGradient id="lensGlint" cx="0.34" cy="0.28" r="0.78">
-          <stop offset="0%" stopColor="#a9cbff" stopOpacity="0.44" />
-          <stop offset="45%" stopColor="#7a9ce0" stopOpacity="0.14" />
-          <stop offset="100%" stopColor="#6f92d8" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -365,7 +398,7 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
         </g>
 
         {/* ---- camera ---- */}
-        <g>
+        <g mask="url(#glassHole)">
           {/* behind the body, so they merge into it at the seam */}
           <path d={PRISM} fill={TOP_FILL} />
           <circle cx="198" cy="92" r="9" fill={TOP_FILL} />
@@ -398,7 +431,17 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
             fill="url(#lensGlow)"
           />
           <circle cx={LENS.cx} cy={LENS.cy} r={LENS.barrel} fill={BARREL_FILL} />
-          <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill={GLASS_FILL} />
+          {/* Nothing to paint: the mask has already taken this circle out of
+              everything above. It stays so the sky can measure where it is. */}
+          <circle
+            ref={lensRef}
+            data-lens=""
+            cx={LENS.cx}
+            cy={LENS.cy}
+            r={LENS.r}
+            fill="none"
+            pointerEvents="none"
+          />
         </g>
 
         {/* ---- fingers, in front of the camera and darker for it ---- */}
@@ -439,24 +482,32 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
             opacity="0.07"
           />
 
-          {/* glass: a rim, a sheen, and one small specular */}
-          <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill="url(#lensGlint)" />
+          {/* Glass: a rim, one small specular, and the frame marks. The sheen
+              that used to fill the disc is gone, because there is a picture
+              under it now and a wash of blue over it is a veil. */}
           <ellipse
             cx="219"
             cy="127"
-            rx="10"
-            ry="4"
+            rx="9"
+            ry="3.5"
             transform="rotate(-42 219 127)"
             fill="#cfe0ff"
-            opacity="0.2"
+            opacity="0.16"
+          />
+          <path
+            d={CORNER_MARKS}
+            stroke="var(--color-ember-400)"
+            strokeOpacity="0.85"
+            strokeWidth="1.6"
+            strokeLinecap="round"
           />
           <circle
             cx={LENS.cx}
             cy={LENS.cy}
             r={LENS.r}
             stroke="#b8d4ff"
-            strokeOpacity="0.44"
-            strokeWidth="1.3"
+            strokeOpacity="0.5"
+            strokeWidth="1.4"
           />
           <circle
             cx={LENS.cx}

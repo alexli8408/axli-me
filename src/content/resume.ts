@@ -71,16 +71,12 @@ export const identity = {
     after: "| SWE Intern @ Del-Coin Holdings Inc.",
   },
   school: {
-    name: "University of Waterloo",
     /**
-     * Path to the wordmark under /public, e.g. "/marks/waterloo.svg". Left
-     * unset the name is spelled out instead, which is why this is a switch
-     * rather than a bare <img> with an onError: an unset path that still gets
-     * requested is a 404 on every single page load.
+     * Set as the wordmark: the words alone, in white, no shield. Typography
+     * rather than an image, so it stays crisp at any size, needs no asset, and
+     * carries none of the crest's trademark with it.
      */
-    mark: undefined as string | undefined,
-    /** Rendered height of the mark. Width follows the file's own ratio. */
-    markHeight: 15,
+    name: "University of Waterloo",
   },
   /** Plain text form, used for <title>, og:title, and the JSON-LD Person. */
   tagline: "Computer Engineering @ University of Waterloo",

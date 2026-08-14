@@ -34,9 +34,10 @@ export type Role = {
   /** The organisation's own site. Makes the thumbnail a link. */
   href?: string;
   /**
-   * Required by the licence, not decoration. The two campus photographs are
-   * CC BY-SA, which asks for the photographer and the licence wherever the
-   * picture appears. Logos are used to name their owner and need no line.
+   * Required by the licence, not decoration. The campus photograph is CC BY-SA,
+   * which asks for the photographer and the licence wherever the picture
+   * appears. The marks are either public domain or used to name their own
+   * owner, so they carry no line.
    */
   credit?: string;
 };
@@ -178,7 +179,6 @@ export const roles: Role[] = [
     id: "tsinghua",
     thumb: "/work/tsinghua.jpg",
     href: "https://www.tsinghua.edu.cn/en/",
-    credit: "Tsinghua second gate by denn, CC BY-SA 2.0",
     title: "Software Engineering Intern",
     org: "Tsinghua University",
     location: "Beijing, China",

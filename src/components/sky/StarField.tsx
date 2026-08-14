@@ -376,6 +376,21 @@ export function StarField({
       ctx.fillStyle = "#04070f";
       ctx.fillRect(0, 0, w, h);
 
+      if (v?.unified && (!photo || photo.full)) {
+        // The frame is the whole window, so there is no frame: draw the sky
+        // plainly and touch none of the geometry.
+        //
+        // This is not just a shortcut. The frame is authored in viewport pixels
+        // and consumed here in canvas pixels, and the driver stops running once
+        // the sequence is over, so the frame is frozen at whatever the window
+        // was at that moment while this canvas keeps resizing under it. Placing
+        // by it afterwards drew the sky offset by half the difference and left
+        // a bare band down the edge, permanently, on any resize or rotation.
+        // At full size there is nothing to place, so nothing can go stale.
+        paintSky(time, true, !reduced, 1);
+        return;
+      }
+
       if (v?.unified && photo) {
         // One sky, at the frame's scale, filling the window.
         ctx.save();
@@ -387,14 +402,12 @@ export function StarField({
 
         // Everything outside the frame, held down. Even-odd so the frame is a
         // hole in the darkening rather than a second thing drawn over the top.
-        if (!photo.full) {
-          const r = Math.max(0, Math.min(photo.r, photo.w / 2, photo.h / 2));
-          ctx.beginPath();
-          ctx.rect(0, 0, w, h);
-          ctx.roundRect(photo.x, photo.y, photo.w, photo.h, r);
-          ctx.fillStyle = "rgba(3, 6, 14, 0.82)";
-          ctx.fill("evenodd");
-        }
+        const r = Math.max(0, Math.min(photo.r, photo.w / 2, photo.h / 2));
+        ctx.beginPath();
+        ctx.rect(0, 0, w, h);
+        ctx.roundRect(photo.x, photo.y, photo.w, photo.h, r);
+        ctx.fillStyle = "rgba(3, 6, 14, 0.82)";
+        ctx.fill("evenodd");
 
         return;
       }

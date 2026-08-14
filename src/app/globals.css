@@ -301,10 +301,16 @@ body {
 
 /* The flash is a full screen of near-white. Under reduced motion the blanket
    transition override above collapses it to an instant on and off, which turns
-   a soft bleach into a hard strobe, so it is capped at a hint of one there. */
+   a soft bleach into a hard strobe, so it is softened to a hint of one there.
+
+   Softened by weakening the colour, not by pinning the opacity. Opacity is what
+   the component animates from 0 to 1 and back, so an !important on it held the
+   sheet at 30% for the entire session instead of only during the shutter: every
+   visitor with reduce-motion on got the whole site behind a permanent white
+   fog. The alpha is baked into the fill here and the on and off is left alone. */
 @media (prefers-reduced-motion: reduce) {
   .shutter-flash {
-    opacity: 0.3 !important;
+    background-color: color-mix(in srgb, var(--color-star) 30%, transparent) !important;
   }
 }
 

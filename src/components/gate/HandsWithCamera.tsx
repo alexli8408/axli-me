@@ -43,14 +43,16 @@ const PRISM = "M 206 100 L 218 66 L 262 66 L 274 100 Z";
  * forearms under the camera met in the middle and read as a torso, which turned
  * the whole thing into a hooded figure. Anyone raising a camera has their
  * elbows out, so the arms spread as they descend and leave a wide gap of sky
- * between them.
+ * between them. Its edges are curves, not the straight lines they started as:
+ * at rest that passed, but the push scales all of this to 2.15 and a straight
+ * edge that long reads as a paper cutout.
  *
  * The right hand is this mirrored about x=240 rather than a second set of
  * numbers, so the two can never drift apart.
  */
 const HAND =
   "M 172 96 C 150 90, 128 104, 122 130 C 116 152, 116 174, 122 192 " +
-  "C 126 204, 128 214, 126 224 L 62 300 L 138 300 " +
+  "C 126 204, 128 214, 126 224 C 116 246, 92 274, 62 300 L 138 300 " +
   "C 154 272, 170 250, 180 232 L 188 200 L 186 96 Z";
 
 /**
@@ -66,7 +68,7 @@ const THUMB =
 /** Outer contour of the hand, lit by the sky behind it. */
 const HAND_RIM =
   "M 160 92 C 142 90, 127 106, 122 130 C 116 152, 116 174, 122 192 " +
-  "C 126 204, 128 214, 126 224 L 76 284";
+  "C 126 204, 128 214, 126 224 C 116 246, 96 270, 76 284";
 
 /** Where the thumb crosses in front of the palm. */
 const THUMB_RIM =
@@ -329,6 +331,18 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
             rx="1.75"
             fill="url(#camRim)"
           />
+          {/* The body gradient ends near the value of the sky behind it, so
+              without this the camera dissolved at the bottom instead of
+              stopping. Faint: it is the edge turning away from the light. */}
+          <rect
+            x={BODY.x + 10}
+            y={BODY.y + BODY.h - 1.4}
+            width={BODY.w - 20}
+            height="1.4"
+            rx="0.7"
+            fill="#b8d4ff"
+            opacity="0.07"
+          />
 
           {/* glass: a rim, a sheen, and one small specular */}
           <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill="url(#lensGlint)" />
@@ -369,8 +383,8 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
               <path
                 d={THUMB_RIM}
                 stroke="#b8d4ff"
-                strokeOpacity="0.2"
-                strokeWidth="1.5"
+                strokeOpacity="0.15"
+                strokeWidth="1.4"
                 strokeLinecap="round"
               />
               <path

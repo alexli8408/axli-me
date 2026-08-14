@@ -18,7 +18,13 @@ export type GatePhase = "rise" | "gate" | "push" | "shutter" | "zoom" | "ready";
  * has been interacted with, so the music cannot start without a real gesture,
  * and pressing the shutter is that gesture.
  */
-export function CameraGate({ phase, onEnter }: { phase: GatePhase; onEnter: () => void }) {
+export function CameraGate({
+  phase,
+  onEnter,
+}: {
+  phase: GatePhase;
+  onEnter: () => void;
+}) {
   const rising = phase === "rise";
   const pushing = phase === "push" || phase === "shutter";
   const past = phase === "zoom" || phase === "ready";
@@ -51,30 +57,13 @@ export function CameraGate({ phase, onEnter }: { phase: GatePhase; onEnter: () =
         <Viewfinder pushing={pushing} />
       </div>
 
-      {/* --- shutter: one hard blink --- */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-black"
-        style={{
-          opacity: phase === "shutter" ? 1 : 0,
-          transition: `opacity ${phase === "shutter" ? "70ms" : "300ms"} linear`,
-        }}
-      />
-
-      {/* --- hands, rising and then travelling to the eye --- */}
-      <div
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 flex origin-bottom justify-center"
-        style={{
-          transform: `translateY(${rising ? 62 : past ? 30 : 0}%) translateY(${camLift}px) scale(${camScale})`,
-          opacity: past ? 0 : 1,
-          transitionProperty: "transform, opacity",
-          transitionDuration: rising ? "1400ms" : pushing ? "820ms" : past ? "700ms" : "1400ms",
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
-        <HandsWithCamera className="h-[46svh] w-auto min-w-100 text-[#01030a]" />
-      </div>
+      {/*
+        Paint order matters here and it is not the order these were written in.
+        The title goes under the camera: it fades over 800ms while the camera
+        pushes up over it, and on top it showed straight through the body. The
+        shutter goes over everything, since a blackout the hands show through is
+        not a blackout.
+      */}
 
       {/* --- title and the way in --- */}
       <div
@@ -109,6 +98,37 @@ export function CameraGate({ phase, onEnter }: { phase: GatePhase; onEnter: () =
           Take the shot
         </button>
       </div>
+
+      {/* --- hands, rising and then travelling to the eye --- */}
+      <div
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 flex origin-bottom justify-center"
+        style={{
+          transform: `translateY(${rising ? 62 : past ? 30 : 0}%) translateY(${camLift}px) scale(${camScale})`,
+          opacity: past ? 0 : 1,
+          transitionProperty: "transform, opacity",
+          transitionDuration: rising
+            ? "1400ms"
+            : pushing
+              ? "820ms"
+              : past
+                ? "700ms"
+                : "1400ms",
+          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
+      >
+        <HandsWithCamera className="h-[46svh] w-auto min-w-100 text-[#01030a]" />
+      </div>
+
+      {/* --- shutter: one hard blink, over everything --- */}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-black"
+        style={{
+          opacity: phase === "shutter" ? 1 : 0,
+          transition: `opacity ${phase === "shutter" ? "70ms" : "300ms"} linear`,
+        }}
+      />
     </div>
   );
 }

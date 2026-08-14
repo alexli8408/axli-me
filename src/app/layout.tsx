@@ -10,7 +10,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(identity.url),
-  title: { default: `${identity.name} · ${identity.tagline}`, template: `%s · ${identity.name}` },
+  // The tab says the name and nothing else. Link previews and search results
+  // below still carry the longer line, since those have room for it and a bare
+  // name in a search result says nothing about who it belongs to.
+  title: { default: identity.name, template: `%s · ${identity.name}` },
   description: identity.blurb,
   keywords: [
     "Alex Li",

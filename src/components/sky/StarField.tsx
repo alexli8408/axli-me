@@ -56,6 +56,21 @@ export type SkyView = {
   /** Knocked back while the camera is still up, so the picture in the lens reads. */
   dim: boolean;
   photo: SkyPhoto | null;
+  /**
+   * Whether the whole window is the photograph.
+   *
+   * While the camera is up there are genuinely two skies: the real one behind
+   * it, and the compressed one in the glass. That is what a lens is, and at the
+   * size of a coin it reads as one.
+   *
+   * It does not survive being enlarged. Once the frame is a third of the window
+   * the two are the same stars at different scales meeting along a hard edge,
+   * and the eye reads that as two pictures rather than one thing being zoomed
+   * into. So from the shutter on there is only ever one sky, drawn at the
+   * frame's own scale, and the frame stops being a clip: it becomes the line
+   * where the darkening around it ends. Nothing to disagree with itself.
+   */
+  unified: boolean;
 };
 
 /** Real star colours run from cool blue-white through to warm amber. */
@@ -356,11 +371,35 @@ export function StarField({
 
       const v = viewRef.current?.current;
       const photo = v?.photo ?? null;
-      const behind = !photo?.full;
 
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = "#04070f";
       ctx.fillRect(0, 0, w, h);
+
+      if (v?.unified && photo) {
+        // One sky, at the frame's scale, filling the window.
+        ctx.save();
+        ctx.translate(photo.x + photo.w / 2, photo.y + photo.h / 2);
+        ctx.scale(photo.scale, photo.scale);
+        ctx.translate(-w / 2, -h / 2);
+        paintSky(time, true, !reduced, photo.scale);
+        ctx.restore();
+
+        // Everything outside the frame, held down. Even-odd so the frame is a
+        // hole in the darkening rather than a second thing drawn over the top.
+        if (!photo.full) {
+          const r = Math.max(0, Math.min(photo.r, photo.w / 2, photo.h / 2));
+          ctx.beginPath();
+          ctx.rect(0, 0, w, h);
+          ctx.roundRect(photo.x, photo.y, photo.w, photo.h, r);
+          ctx.fillStyle = "rgba(3, 6, 14, 0.82)";
+          ctx.fill("evenodd");
+        }
+
+        return;
+      }
+
+      const behind = !photo?.full;
 
       if (behind) {
         const a = v?.ambient ?? 1;

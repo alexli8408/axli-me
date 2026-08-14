@@ -27,6 +27,16 @@ const GATE_SCALE = 1.16;
  */
 const MIN_PHOTO_SCALE = 0.34;
 
+/**
+ * How long into the shutter the window becomes the photograph.
+ *
+ * The handover swaps the background from the real sky to the sky at the
+ * frame's scale, which is a large change and has to happen where nobody can
+ * see it. The flash is opaque about 60ms in, so this sits behind it with room
+ * either side.
+ */
+const HANDOVER_MS = 110;
+
 /** How far inside the rim the picture sits, so the glass keeps an edge. */
 const APERTURE_INSET = 0.9;
 
@@ -41,7 +51,7 @@ export function SkyScene() {
   const phaseRef = useRef<GatePhase>(phase);
   const zoomFrom = useRef<{ cx: number; cy: number; r: number } | null>(null);
   /** Shared with the canvas, which reads it fresh every frame. */
-  const view = useRef<SkyView>({ ambient: GATE_SCALE, dim: true, photo: null });
+  const view = useRef<SkyView>({ ambient: GATE_SCALE, dim: true, photo: null, unified: false });
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -123,6 +133,7 @@ export function SkyScene() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
     let zoomStart = 0;
+    let shutterAt = 0;
 
     const step = (now: number) => {
       const p = phaseRef.current;
@@ -135,6 +146,7 @@ export function SkyScene() {
       view.current.dim = p !== "ready";
 
       if (p === "ready") {
+        view.current.unified = true;
         place(1);
         wakeRef.current?.();
         return;
@@ -142,10 +154,18 @@ export function SkyScene() {
 
       if (p === "zoom") {
         if (!zoomStart) zoomStart = now;
+        view.current.unified = true;
         place(reduced ? 1 : Math.min(1, (now - zoomStart) / ZOOM_MS));
+      } else if (p === "shutter") {
+        if (!shutterAt) shutterAt = now;
+        zoomFrom.current = readLens(lensRef.current);
+        view.current.unified = reduced || now - shutterAt >= HANDOVER_MS;
+        place(0);
       } else {
-        // Still following the glass.
-        zoomFrom.current = p === "shutter" ? readLens(lensRef.current) : null;
+        // Still following the glass, and there are still two skies.
+        shutterAt = 0;
+        zoomFrom.current = null;
+        view.current.unified = false;
         place(0);
       }
 

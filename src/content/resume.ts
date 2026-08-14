@@ -70,21 +70,11 @@ export const identity = {
     before: "CE @",
     after: "| SWE Intern @ Del-Coin Holdings Inc.",
   },
-  school: {
-    name: "University of Waterloo",
-    /**
-     * Set as type, not as the lockup. The official file brings the shield with
-     * it, and a gold crest is the loudest thing on a page that is otherwise a
-     * night sky. The words on their own, in the same family as the name above
-     * them and larger than the line they sit in, carry the same information
-     * and belong to the design.
-     *
-     * Set this to a path under /public to use an image instead.
-     */
-    mark: undefined as string | undefined,
-    markHeight: 34,
-    markRatio: 400 / 160,
-  },
+  /**
+   * Drawn as the wordmark itself, in WaterlooWordmark. The name is kept here
+   * for the places that need it as words: the accessible label and metadata.
+   */
+  school: { name: "University of Waterloo" },
   /** Plain text form, used for <title>, og:title, and the JSON-LD Person. */
   tagline: "Computer Engineering @ University of Waterloo",
   blurb:

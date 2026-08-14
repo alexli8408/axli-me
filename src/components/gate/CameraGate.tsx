@@ -80,7 +80,9 @@ export function CameraGate({ phase, onEnter }: { phase: GatePhase; onEnter: () =
       <div
         className="absolute inset-x-0 flex flex-col items-center gap-6 px-6"
         style={{
-          top: "54%",
+          // Just under the viewfinder's bottom edge, which is at 46%. Any lower
+          // and the button lands on the pentaprism.
+          top: "47%",
           opacity: phase === "gate" ? 1 : 0,
           transform: `translateY(${phase === "gate" ? 0 : rising ? 16 : -14}px)`,
           transitionProperty: "opacity, transform",

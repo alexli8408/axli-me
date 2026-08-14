@@ -199,16 +199,31 @@ export const roles: Role[] = [
 
 export const projects: Project[] = [
   {
-    id: "int8-squeezenet",
-    repo: "https://github.com/alexli8408/int8-squeezenet-engine",
-    name: "INT8 SqueezeNet Inference Engine",
-    stack: ["C++17", "ARM NEON", "ONNX Runtime", "Python"],
-    start: "May 2026",
-    end: "Aug. 2026",
+    id: "quarry",
+    name: "Quarry",
+    stack: ["TypeScript", "VS Code", "React Three Fiber", "Postgres", "node-sql-parser"],
+    repo: "https://github.com/alexli8408/quarry",
+    thumb: "/demo/quarry-card",
+    start: "Aug. 2026",
+    end: "Present",
     bullets: [
-      "Hand-wrote an INT8 SqueezeNet forward pass in C++17/NEON: 3.10 ms, 50% of M2 SDOT peak",
-      "Matched ONNX Runtime per-node tensors to 1 LSB across all 26 conv layers, 25 bit-identical",
-      "Showed per-node diffs catch every fault accuracy testing does at up to 20x fewer images, plus one it never will",
+      "Introspected 500 tables and 6,733 columns in 7 catalog round-trips at 63.9 ms, not one query per table",
+      "Parsed 52 of 53 embedded SQL statements across 6 languages in 27 ms, resolving each against the live catalog",
+      "Rewrote driver placeholders to $n only after an unmodified parse failed, since ? is also jsonb existence",
+    ],
+  },
+  {
+    id: "limn",
+    name: "Limn",
+    stack: ["Next.js", "React", "Supabase", "Postgres", "FastAPI", "OpenCV", "Gemini"],
+    repo: "https://github.com/alexli8408/limn",
+    thumb: "/demo/limn-card",
+    start: "Aug. 2026",
+    end: "Present",
+    bullets: [
+      "Lifted stroke recognition from 65% to 95.8% over 600 strokes by testing quad diagonals, not area over rect",
+      "Converged 5 peers over 40 rounds of shuffled delivery, ordering every edit by (version, versionNonce)",
+      "Recovered 4/4 primitives from a photographed whiteboard in 57 ms: perspective flatten, ink thinning, shape fit",
     ],
   },
   {
@@ -223,23 +238,6 @@ export const projects: Project[] = [
       "Built a real-time assistive vision app alerting colorblind users to objects they cannot distinguish",
       "Architected 3 services: a React Native client, Next.js gateway, and YOLOv3 detection server",
       "Profiled the detection pipeline to 74 ms/frame, finding JPEG decode at 69% and model inference at only 21%",
-    ],
-  },
-  {
-    // This was the held slot, repeating TrueLight the way the resume does.
-    // Limn is the project it was being held for. The resume still shows the
-    // repeat, so the two differ here until that is reprinted.
-    id: "limn",
-    name: "Limn",
-    stack: ["Next.js", "React", "Supabase", "Postgres", "FastAPI", "OpenCV", "Gemini"],
-    repo: "https://github.com/alexli8408/limn",
-    thumb: "/demo/limn-card",
-    start: "Aug. 2026",
-    end: "Present",
-    bullets: [
-      "Lifted stroke recognition from 65% to 95.8% over 600 strokes by testing quad diagonals, not area over rect",
-      "Converged 5 peers over 40 rounds of shuffled delivery, ordering every edit by (version, versionNonce)",
-      "Recovered 4/4 primitives from a photographed whiteboard in 57 ms: perspective flatten, ink thinning, shape fit",
     ],
   },
 ];

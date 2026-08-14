@@ -170,7 +170,19 @@ export function SectionOverlays({
                 </button>
               </header>
 
-              <div className="overflow-y-auto overscroll-contain px-6 py-6 sm:px-8 sm:py-7">
+              {/* The mask fades the last few lines out instead of guillotining
+                  them at the border, which is the only cue that there is more
+                  below. It stops at the very bottom so the final line is not
+                  left permanently half faded. */}
+              <div
+                className="overflow-y-auto overscroll-contain px-6 py-6 sm:px-8 sm:py-7"
+                style={{
+                  maskImage:
+                    "linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 34px), transparent 100%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 34px), transparent 100%)",
+                }}
+              >
                 {card.content}
               </div>
             </div>

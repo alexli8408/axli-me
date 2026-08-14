@@ -7,6 +7,7 @@ import {
   labelAnchor,
   spread,
   type Constellation,
+  type Star,
 } from "@/lib/sky";
 
 /**
@@ -171,6 +172,41 @@ function ConstellationStars({ c, active }: { c: Constellation; active: boolean }
 }
 
 /**
+ * Where a star's name goes.
+ *
+ * Every label used to hang straight below its star, which put half of them on
+ * top of the joining lines and, in the wider shapes, on top of each other. They
+ * are pushed away from the middle of their own constellation instead, so they
+ * radiate outward and land in empty sky.
+ *
+ * x and y are fractions of two different edges, so a direction taken from them
+ * raw is skewed by the viewport. Weighting x by a typical aspect is enough to
+ * pick the right side, which is all this has to do.
+ */
+const LABEL_ASPECT = 1.6;
+
+function labelPlacement(s: Star, mid: { x: number; y: number }) {
+  const dx = (s.x - mid.x) * LABEL_ASPECT;
+  const dy = s.y - mid.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+
+  // Clearly to one side: sit beside the star. Otherwise above or below it.
+  if (Math.abs(ux) > 0.5) {
+    return {
+      transform: ux > 0 ? "translateY(-50%)" : "translate(-100%, -50%)",
+      marginLeft: `${ux > 0 ? 13 : -13}px`,
+      marginTop: "0px",
+    };
+  }
+  return {
+    transform: "translateX(-50%)",
+    marginLeft: "0px",
+    marginTop: dy >= 0 ? "0.9rem" : "-1.5rem",
+  };
+}
+
+/**
  * The hit target and the labels. Positioned in percentages so it tracks the
  * same normalised coordinates the SVG uses.
  */
@@ -234,22 +270,28 @@ function ConstellationButton({
       </a>
 
       {/* Star names, revealed only on hover so the resting sky stays quiet. */}
-      {c.stars.map((s, i) => (
-        <span
-          key={i}
-          aria-hidden
-          className="pointer-events-none absolute -translate-x-1/2 font-mono text-[9px] tracking-[0.18em] whitespace-nowrap text-ember-400/80 uppercase transition-all duration-500 ease-expo"
-          style={{
-            left: `${s.x * 100}%`,
-            top: `${s.y * 100}%`,
-            marginTop: "0.85rem",
-            opacity: active ? 1 : 0,
-            transitionDelay: active ? `${i * 45}ms` : "0ms",
-          }}
-        >
-          {s.label}
-        </span>
-      ))}
+      {c.stars.map((s, i) => {
+        const place = labelPlacement(s, mid);
+        return (
+          <span
+            key={i}
+            aria-hidden
+            // No Tailwind translate class here. Tailwind v4 emits `translate`
+            // as its own property, which composes with `transform` rather than
+            // losing to it, so the two together shift the label twice.
+            className="pointer-events-none absolute font-mono text-[9px] tracking-[0.18em] whitespace-nowrap text-ember-400/80 uppercase transition-opacity duration-500 ease-expo"
+            style={{
+              left: `${s.x * 100}%`,
+              top: `${s.y * 100}%`,
+              ...place,
+              opacity: active ? 1 : 0,
+              transitionDelay: active ? `${i * 45}ms` : "0ms",
+            }}
+          >
+            {s.label}
+          </span>
+        );
+      })}
     </>
   );
 }

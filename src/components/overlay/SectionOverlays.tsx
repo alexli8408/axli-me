@@ -10,6 +10,42 @@ import {
 } from "react";
 import { constellations } from "@/lib/sky";
 
+/**
+ * Fades whichever edge has content past it.
+ *
+ * A fade on a card that does not scroll is just a card with its first and last
+ * lines dimmed for no reason, so this reports what is actually off screen and
+ * the stylesheet masks accordingly. Fires on scroll and on resize, and once on
+ * mount because a dialog measures as zero until it opens.
+ */
+function useScrollFade() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const measure = () => {
+      const top = el.scrollTop > 2;
+      const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 2;
+      el.dataset.fade = top && bottom ? "both" : top ? "top" : bottom ? "bottom" : "none";
+    };
+
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    for (const child of el.children) ro.observe(child);
+
+    return () => {
+      el.removeEventListener("scroll", measure);
+      ro.disconnect();
+    };
+  }, []);
+
+  return ref;
+}
+
 type SectionApi = {
   open: (id: string) => void;
   close: () => void;
@@ -170,25 +206,29 @@ export function SectionOverlays({
                 </button>
               </header>
 
-              {/* The mask fades the last few lines out instead of guillotining
-                  them at the border, which is the only cue that there is more
-                  below. It stops at the very bottom so the final line is not
-                  left permanently half faded. */}
-              <div
-                className="overflow-y-auto overscroll-contain px-6 py-6 sm:px-8 sm:py-7"
-                style={{
-                  maskImage:
-                    "linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 34px), transparent 100%)",
-                  WebkitMaskImage:
-                    "linear-gradient(to bottom, transparent 0, #000 18px, #000 calc(100% - 34px), transparent 100%)",
-                }}
-              >
-                {card.content}
-              </div>
+              <CardBody>{card.content}</CardBody>
             </div>
           </dialog>
         );
       })}
     </SectionContext.Provider>
+  );
+}
+
+/**
+ * The scrolling half of a card. Long sections cut their last line off flat
+ * against the border with nothing to say more was below, so the edge with
+ * content past it fades instead.
+ */
+function CardBody({ children }: { children: ReactNode }) {
+  const ref = useScrollFade();
+  return (
+    <div
+      ref={ref}
+      data-fade="none"
+      className="card-body overflow-y-auto overscroll-contain px-6 py-6 sm:px-8 sm:py-7"
+    >
+      {children}
+    </div>
   );
 }

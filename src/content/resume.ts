@@ -8,6 +8,12 @@ export type Link = {
   href: string;
   /** Shown in the contact card. Set false for anything you'd rather not publish. */
   public: boolean;
+  /**
+   * What to print, when stripping the scheme off the href does not give
+   * something a person would want to read. A tel: href has to be unpunctuated
+   * to dial, so the phone sets this.
+   */
+  display?: string;
 };
 
 export type Role = {
@@ -55,7 +61,7 @@ export const links: Link[] = [
   { label: "Email", href: "mailto:atli@uwaterloo.ca", public: true },
   // Published at Alex's request. Public pages get scraped by SMS and robocall
   // spammers more than PDFs do, so flip this to false to pull it.
-  { label: "Phone", href: "tel:+17783219837", public: true },
+  { label: "Phone", href: "tel:+17783219837", public: true, display: "+1 778 321 9837" },
 ];
 
 export const education = {

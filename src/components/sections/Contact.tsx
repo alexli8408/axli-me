@@ -19,7 +19,7 @@ export function Contact() {
                   {link.label}
                 </span>
                 <span className="mt-0.5 block truncate text-xs text-star">
-                  {link.href.replace(/^mailto:|^tel:|^https?:\/\//, "")}
+                  {link.display ?? link.href.replace(/^mailto:|^tel:|^https?:\/\//, "")}
                 </span>
               </span>
               <span

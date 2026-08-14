@@ -238,9 +238,31 @@ body {
   }
 }
 
-/* The pause control. The canvas holds its own clock; these are CSS animations,
-   so they are held here. Paused rather than removed, so nothing jumps. */
-/* !important because each star carries its own inline `animation` shorthand,
+/* ---------------------------------------------------------------------------
+   Card scroll edges. Only the side with content past it gets faded, so a card
+   that fits shows its first and last line at full strength.
+   --------------------------------------------------------------------------- */
+.card-body[data-fade="bottom"] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent 100%);
+}
+.card-body[data-fade="top"] {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 40px);
+}
+.card-body[data-fade="both"] {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 40px,
+    #000 calc(100% - 40px),
+    transparent 100%
+  );
+}
+
+/* The pause control. The canvas holds its own clock, so it freezes itself;
+   these are CSS animations, so they are held here. Paused rather than removed,
+   so nothing jumps.
+
+   !important because each star carries its own inline `animation` shorthand,
    which sets play-state back to running and, being inline, would otherwise
    outrank this. */
 [data-motion="off"] [data-twinkle] {

@@ -202,6 +202,7 @@ export const projects: Project[] = [
     id: "truelight",
     name: "TrueLight",
     stack: ["React Native", "Expo", "Next.js", "FastAPI", "YOLOv3", "OpenCV"],
+    thumb: "/demo/truelight-card",
     start: "Jan. 2026",
     end: "Apr. 2026",
     bullets: [

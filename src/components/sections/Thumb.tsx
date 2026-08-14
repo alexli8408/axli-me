@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ThumbClip } from "./ThumbClip";
 
 /**
  * The still that sits under an entry.
@@ -14,9 +15,20 @@ import Image from "next/image";
  * photograph.
  */
 export function Thumb({ src, alt }: { src?: string; alt: string }) {
+  // A path with no extension is a clip: the three files next to it are the two
+  // encodings and the poster. Keeps the entry data to one field either way.
+  const clip = src && !/\.\w+$/.test(src);
+
   return (
     <div className="relative mt-3.5 aspect-[21/9] w-full overflow-hidden rounded-2xl border border-line/70 bg-gradient-to-br from-sky-850/70 via-sky-900/50 to-sky-950/70">
-      {src ? (
+      {clip ? (
+        <ThumbClip
+          webm={`${src}.webm`}
+          mp4={`${src}.mp4`}
+          poster={`${src}.jpg`}
+          alt={alt}
+        />
+      ) : src ? (
         <Image
           src={src}
           alt={alt}

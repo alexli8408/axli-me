@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Radio } from "@/components/audio/Radio";
 import { CameraGate, type GatePhase } from "@/components/gate/CameraGate";
 import { useSectionOverlays } from "@/components/overlay/SectionOverlays";
 import { Constellations } from "./Constellations";
@@ -180,6 +181,10 @@ export function SkyScene() {
       <Constellations onOpen={open} revealed={phase === "ready"} />
 
       <CameraGate phase={phase} onEnter={enter} lensRef={lensRef} />
+
+      {/* The shutter click is the gesture browsers want before they will let
+          anything make a sound, so the radio starts on the way in. */}
+      <Radio start={phase !== "rise" && phase !== "gate"} visible={phase === "ready"} />
 
       {/*
         WCAG 2.2.2. The field twinkles and throws meteors for as long as the tab

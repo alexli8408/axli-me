@@ -5,6 +5,7 @@ import { Radio } from "@/components/audio/Radio";
 import { CameraGate, type GatePhase } from "@/components/gate/CameraGate";
 import { Headline } from "@/components/Headline";
 import { identity } from "@/content/resume";
+import { playShutter, warmShutter } from "@/lib/shutter";
 import { useSectionOverlays } from "@/components/overlay/SectionOverlays";
 import { Constellations } from "./Constellations";
 import { StarField, type SkyView } from "./StarField";
@@ -112,6 +113,9 @@ export function SkyScene() {
   }, []);
 
   const enter = useCallback(() => {
+    // Built here, inside the click, so it is ready rather than being allocated
+    // at the moment it has to make a sound.
+    warmShutter();
     setPhase((p) => {
       if (p !== "gate") return p;
       timers.current.push(
@@ -159,7 +163,12 @@ export function SkyScene() {
         view.current.unified = true;
         place(reduced ? 1 : Math.min(1, (now - zoomStart) / ZOOM_MS));
       } else if (p === "shutter") {
-        if (!shutterAt) shutterAt = now;
+        if (!shutterAt) {
+          shutterAt = now;
+          // Fired from the same frame that starts the flash, so the click and
+          // the white land together rather than one chasing the other.
+          playShutter();
+        }
         zoomFrom.current = readLens(lensRef.current);
         view.current.unified = reduced || now - shutterAt >= HANDOVER_MS;
         place(0);
@@ -207,16 +216,16 @@ export function SkyScene() {
         without making anyone open a card to find out.
       */}
       <header
-        className="pointer-events-none absolute top-6 left-6 z-40 transition-all duration-1000 ease-expo sm:top-8 sm:left-8"
+        className="pointer-events-none absolute inset-x-0 top-7 z-40 flex flex-col items-center px-6 text-center transition-all duration-1000 ease-expo sm:top-9"
         style={{
           opacity: phase === "ready" ? 1 : 0,
           transform: `translateY(${phase === "ready" ? 0 : -10}px)`,
         }}
       >
-        <h1 className="text-lg font-semibold tracking-[0.22em] text-star uppercase [text-shadow:0_2px_22px_rgb(0_0_0/0.9)] sm:text-xl">
+        <h1 className="text-lg font-semibold tracking-[0.24em] text-star uppercase [text-shadow:0_2px_22px_rgb(0_0_0/0.9)] sm:text-xl">
           {identity.name}
         </h1>
-        <Headline className="mt-1.5 justify-start font-mono text-[10px] tracking-[0.2em] text-muted uppercase [text-shadow:0_2px_16px_rgb(0_0_0/0.9)] sm:text-[11px]" />
+        <Headline className="mt-2 font-mono text-[10px] tracking-[0.2em] text-muted uppercase [text-shadow:0_2px_16px_rgb(0_0_0/0.9)] sm:text-[11px]" />
       </header>
 
       <Constellations onOpen={open} revealed={phase === "ready"} />

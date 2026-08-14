@@ -267,12 +267,18 @@ const RIGHT_VARIATION = [
 const LEFT_KNUCKLE = 150;
 const RIGHT_KNUCKLE = 330;
 
-/**
- * The right index reaches up to the shutter release instead of wrapping, which
- * is where it sits on a camera about to be fired. So the right hand shows three
- * wrapping fingers and this one, and the left shows four.
+/*
+ * There was a fifth finger here, the right index reaching up to the shutter
+ * release. It was right about how a camera is held and wrong about what this
+ * drawing can show. Seen flat from the front, a finger on the top plate has to
+ * be drawn above the body's outline, so it read as a loose shape hovering over
+ * the camera rather than a finger resting on a button.
+ *
+ * Worse, taking that finger off the front face left the right hand with three
+ * fingers and a gap where the fourth should be. The two hands stopped matching
+ * in the one way that matters, and that gap is what kept reading as broken.
+ * Both hands wrap all four now; the release is still drawn on the top plate.
  */
-const SHUTTER_FINGER: Spine = [336, 116, 300, 90, 8.5, 5, 7, -4];
 
 const MIRROR = "translate(480 0) scale(-1 1)";
 /** Same mirror, plus a couple of degrees so the right hand sits at its own angle. */
@@ -339,7 +345,6 @@ export function HandsWithCamera({
       k: `r${i}`,
       s: spineFor(RIGHT_KNUCKLE, -1, f, RIGHT_VARIATION[i]),
     })),
-    { k: "shutter", s: SHUTTER_FINGER },
   ];
 
   return (

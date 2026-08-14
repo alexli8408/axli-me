@@ -29,6 +29,8 @@ const VOLUME = 32;
 const FADE_MS = 6000;
 /** Short, but not a cut. A cut is what makes the click. */
 const FADE_OUT_MS = 420;
+/** The most a single frame may advance a fade, however long it actually was. */
+const FRAME_CAP_MS = 100;
 
 /**
  * The onset: how long to spend crossing the four quietest steps, and where it
@@ -190,11 +192,21 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
     // that level. Queued back to back the two messages arrive back to back.
     set(rampLevel(0));
 
-    const t0 = performance.now();
+    // Elapsed is accumulated from frame to frame and each step is capped,
+    // rather than read off the wall clock.
+    //
+    // Frames stop arriving when the tab goes to the background, so a fade timed
+    // against the clock froze at whatever level it had reached and then leapt
+    // to full the moment you came back: the gap counted as fade that had
+    // already happened. Capping each step means a hidden tab advances the fade
+    // by almost nothing, so it holds where it was and carries on from there.
+    let elapsed = 0;
+    let last = performance.now();
     const step = (now: number) => {
-      const ms = now - t0;
-      set(rampLevel(ms));
-      if (ms < FADE_MS) fade.current = requestAnimationFrame(step);
+      elapsed += Math.min(FRAME_CAP_MS, now - last);
+      last = now;
+      set(rampLevel(elapsed));
+      if (elapsed < FADE_MS) fade.current = requestAnimationFrame(step);
     };
     fade.current = requestAnimationFrame(step);
   }, []);
@@ -212,10 +224,13 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
     cancelAnimationFrame(fade.current);
 
     const from = Math.max(1, level.current);
-    const t0 = performance.now();
+    let elapsed = 0;
+    let last = performance.now();
     let sent = -1;
     const step = (now: number) => {
-      const u = Math.min(1, (now - t0) / FADE_OUT_MS);
+      elapsed += Math.min(FRAME_CAP_MS, now - last);
+      last = now;
+      const u = Math.min(1, elapsed / FADE_OUT_MS);
       // Down a decibel scale, so it thins out rather than dropping through the
       // loud half in the first fifty milliseconds.
       const v = u >= 1 ? 0 : Math.max(0, Math.round(from * Math.pow(10, (-24 * u) / 20)));

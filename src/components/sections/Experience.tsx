@@ -20,7 +20,7 @@ export function Experience() {
             </span>
           </div>
           <p className="mt-0.5 text-sm text-ember-400">{role.org}</p>
-          <Thumb src={role.thumb} alt={role.org} />
+          <Thumb src={role.thumb} alt={role.org} href={role.href} credit={role.credit} />
         </li>
       ))}
     </ol>

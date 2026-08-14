@@ -16,7 +16,7 @@ export function Projects() {
           <p className="mt-1 font-mono text-[11px] tracking-[0.06em] text-faint">
             {project.stack.join(" · ")}
           </p>
-          <Thumb src={project.thumb} alt={project.name} />
+          <Thumb src={project.thumb} alt={project.name} href={project.repo} />
         </li>
       ))}
     </ol>

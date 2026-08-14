@@ -31,6 +31,14 @@ export type Role = {
    * file in is the only change needed to fill it.
    */
   thumb?: string;
+  /** The organisation's own site. Makes the thumbnail a link. */
+  href?: string;
+  /**
+   * Required by the licence, not decoration. The two campus photographs are
+   * CC BY-SA, which asks for the photographer and the licence wherever the
+   * picture appears. Logos are used to name their owner and need no line.
+   */
+  credit?: string;
 };
 
 export type Project = {
@@ -46,13 +54,8 @@ export type Project = {
    * file in is the only change needed to fill it.
    */
   thumb?: string;
-
-  /**
-   * Marks the slot Alex is holding for the next project. The resume repeats
-   * TrueLight here on purpose. Swap the fields below when the new project is
-   * ready and nothing else needs to change.
-   */
-  placeholder?: boolean;
+  /** The source. Makes the thumbnail a link. */
+  repo?: string;
 };
 
 export const identity = {
@@ -105,6 +108,8 @@ export const education = {
 export const roles: Role[] = [
   {
     id: "del-coin",
+    thumb: "/work/del-coin.jpg",
+    credit: "Engineering 5 by Maria Ly, CC BY-SA 2.0",
     title: "Software Engineering Intern",
     org: "Del-Coin Holdings Inc.",
     location: "Orillia, Ontario",
@@ -131,6 +136,8 @@ export const roles: Role[] = [
   },
   {
     id: "watonomous",
+    thumb: "/work/watonomous.jpg",
+    href: "https://www.watonomous.ca",
     title: "Software Engineer",
     org: "WATonomous",
     location: "Waterloo, Ontario",
@@ -149,6 +156,8 @@ export const roles: Role[] = [
   },
   {
     id: "warg",
+    thumb: "/work/warg.jpg",
+    href: "https://www.uwarg.com",
     title: "Software Engineer",
     org: "Waterloo Aerial Robotics Group",
     location: "Waterloo, Ontario",
@@ -167,6 +176,9 @@ export const roles: Role[] = [
   },
   {
     id: "tsinghua",
+    thumb: "/work/tsinghua.jpg",
+    href: "https://www.tsinghua.edu.cn/en/",
+    credit: "Tsinghua second gate by denn, CC BY-SA 2.0",
     title: "Software Engineering Intern",
     org: "Tsinghua University",
     location: "Beijing, China",
@@ -188,6 +200,7 @@ export const roles: Role[] = [
 export const projects: Project[] = [
   {
     id: "int8-squeezenet",
+    repo: "https://github.com/alexli8408/int8-squeezenet-engine",
     name: "INT8 SqueezeNet Inference Engine",
     stack: ["C++17", "ARM NEON", "ONNX Runtime", "Python"],
     start: "May 2026",
@@ -200,6 +213,7 @@ export const projects: Project[] = [
   },
   {
     id: "truelight",
+    repo: "https://github.com/alexli8408/TrueLight",
     name: "TrueLight",
     stack: ["React Native", "Expo", "Next.js", "FastAPI", "YOLOv3", "OpenCV"],
     thumb: "/demo/truelight-card",
@@ -212,18 +226,21 @@ export const projects: Project[] = [
     ],
   },
   {
-    // Placeholder slot, left exactly as it appears on the resume.
-    id: "truelight-placeholder",
-    name: "TrueLight",
-    stack: ["React Native", "Expo", "Next.js", "FastAPI", "YOLOv3", "OpenCV"],
-    start: "Jan. 2026",
-    end: "Apr. 2026",
+    // This was the held slot, repeating TrueLight the way the resume does.
+    // Limn is the project it was being held for. The resume still shows the
+    // repeat, so the two differ here until that is reprinted.
+    id: "limn",
+    name: "Limn",
+    stack: ["Next.js", "React", "Supabase", "Postgres", "FastAPI", "OpenCV", "Gemini"],
+    repo: "https://github.com/alexli8408/limn",
+    thumb: "/demo/limn-card",
+    start: "Aug. 2026",
+    end: "Present",
     bullets: [
-      "Built a real-time assistive vision app alerting colorblind users to objects they cannot distinguish",
-      "Architected 3 services: a React Native client, Next.js gateway, and YOLOv3 detection server",
-      "Profiled the detection pipeline to 74 ms/frame, finding JPEG decode at 69% and model inference at only 21%",
+      "Lifted stroke recognition from 65% to 95.8% over 600 strokes by testing quad diagonals, not area over rect",
+      "Converged 5 peers over 40 rounds of shuffled delivery, ordering every edit by (version, versionNonce)",
+      "Recovered 4/4 primitives from a photographed whiteboard in 57 ms: perspective flatten, ink thinning, shape fit",
     ],
-    placeholder: true,
   },
 ];
 

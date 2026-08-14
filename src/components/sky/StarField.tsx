@@ -50,8 +50,23 @@ const STAR_COLOURS: [number, number, number][] = [
  * drawn in "lighter" so overlapping clouds add rather than occlude, which is
  * how emission nebulae actually photograph on a long exposure.
  */
-export function StarField({ dim = false }: { dim?: boolean }) {
+export function StarField({ dim = false, zoom = 1 }: { dim?: boolean; zoom?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const zoomTarget = useRef(zoom);
+  const wake = useRef<() => void>(() => {});
+
+  // The zoom lives here rather than as a transform on the wrapper. Scaling a
+  // full-viewport element promotes it to its own composited layer, and Chrome
+  // rasters that layer for the scaled-up bounds: the tiles past roughly 92%
+  // never get painted, so once the scale settles back the right and bottom
+  // edges show the page background instead of sky. Setting the transform to
+  // none afterwards does not reclaim them, because the raster is already
+  // stale. Doing the zoom in canvas space avoids the layer altogether, and
+  // costs nothing extra since the field redraws every frame anyway.
+  useEffect(() => {
+    zoomTarget.current = zoom;
+    wake.current();
+  }, [zoom]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -71,12 +86,19 @@ export function StarField({ dim = false }: { dim?: boolean }) {
     let disposed = false;
     let nextShooter = 2.5;
     let last = 0;
+    let zc = zoomTarget.current;
 
     const build = () => {
-      const rect = canvas.getBoundingClientRect();
+      // offsetWidth, not getBoundingClientRect. The sky sits inside a wrapper
+      // that scales during the push into the photo, and a bounding rect
+      // includes ancestor transforms, so this built a 1670x1044 backing store
+      // for a 1440x900 box. ResizeObserver watches the untransformed border
+      // box, so it never fired again to correct it: the field stayed at the
+      // wrong resolution, the galactic band came out at the wrong angle for
+      // the box it ended up in, and the bottom right corner never painted.
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = Math.max(1, Math.round(rect.width));
-      h = Math.max(1, Math.round(rect.height));
+      w = Math.max(1, canvas.offsetWidth || Math.round(canvas.getBoundingClientRect().width));
+      h = Math.max(1, canvas.offsetHeight || Math.round(canvas.getBoundingClientRect().height));
       diag = Math.hypot(w, h);
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
@@ -139,6 +161,20 @@ export function StarField({ dim = false }: { dim?: boolean }) {
       base.addColorStop(1, "#03050f");
       ctx.fillStyle = base;
       ctx.fillRect(0, 0, w, h);
+
+      // Ease toward the target zoom. Exponential rather than linear so it
+      // arrives the way the CSS transition it replaced did. The base gradient
+      // above is drawn outside this, so the canvas is covered whatever the
+      // zoom is doing.
+      const target = zoomTarget.current;
+      zc = reduced ? target : zc + (target - zc) * (1 - Math.exp(-dt / 0.34));
+
+      ctx.save();
+      if (Math.abs(zc - 1) > 0.0005) {
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(zc, zc);
+        ctx.translate(-w / 2, -h / 2);
+      }
 
       // --- nebulae, additive so overlaps brighten ---
       ctx.globalCompositeOperation = "lighter";
@@ -232,6 +268,7 @@ export function StarField({ dim = false }: { dim?: boolean }) {
         shooters = shooters.filter((m) => m.life < m.max);
       }
 
+      ctx.restore();
       ctx.globalCompositeOperation = "source-over";
     };
 
@@ -243,6 +280,13 @@ export function StarField({ dim = false }: { dim?: boolean }) {
         return;
       }
       raf = requestAnimationFrame(loop);
+    };
+
+    wake.current = () => {
+      if (!raf && !disposed) {
+        last = 0;
+        raf = requestAnimationFrame(loop);
+      }
     };
 
     build();
@@ -266,6 +310,7 @@ export function StarField({ dim = false }: { dim?: boolean }) {
 
     return () => {
       disposed = true;
+      wake.current = () => {};
       if (raf) cancelAnimationFrame(raf);
       ro.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);

@@ -55,21 +55,15 @@ export function SkyScene() {
     <main className="relative h-svh w-full overflow-hidden bg-sky-950">
       {/*
         The sky sits slightly pushed in and dimmed behind the viewfinder, then
-        settles back as the frame opens. Scaling the sky rather than scaling the
-        constellations keeps their coordinates in plain viewport space, so the
-        hit targets never have to be corrected for a transform.
+        settles back as the frame opens. The push happens inside the canvas, not
+        as a transform on this wrapper: scaling a full-viewport element hands it
+        its own composited layer, and the raster for that layer comes back short
+        at the right and bottom edges. The constellations never move with it, so
+        their coordinates stay in plain viewport space and the hit targets never
+        have to be corrected for anything.
       */}
-      <div
-        className="absolute inset-0 transition-all ease-expo"
-        style={{
-          // Scaling the sky rather than the constellations keeps their
-          // coordinates in plain viewport space, so the hit targets never have
-          // to be corrected for a transform.
-          transform: entering ? "scale(1)" : "scale(1.16)",
-          transitionDuration: `${ZOOM_MS}ms`,
-        }}
-      >
-        <StarField dim={!entering} />
+      <div className="absolute inset-0">
+        <StarField dim={!entering} zoom={entering ? 1 : 1.16} />
       </div>
 
       <Constellations onOpen={open} revealed={phase === "ready"} />

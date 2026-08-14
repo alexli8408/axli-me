@@ -73,7 +73,7 @@ export function CameraGate({ phase, onEnter }: { phase: GatePhase; onEnter: () =
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        <HandsWithCamera className="h-[52svh] w-auto min-w-120 text-[#01030a]" />
+        <HandsWithCamera className="h-[46svh] w-auto min-w-100 text-[#01030a]" />
       </div>
 
       {/* --- title and the way in --- */}

@@ -50,8 +50,8 @@ const PRISM = "M 206 100 L 218 66 L 262 66 L 274 100 Z";
  */
 const HAND =
   "M 172 96 C 150 90, 128 104, 122 130 C 116 152, 116 174, 122 192 " +
-  "C 126 206, 128 216, 124 226 L 42 300 L 132 300 " +
-  "C 152 268, 172 248, 182 232 L 188 200 L 186 96 Z";
+  "C 126 204, 128 214, 126 224 L 62 300 L 138 300 " +
+  "C 154 272, 170 250, 180 232 L 188 200 L 186 96 Z";
 
 /**
  * Thumb, hooked up out of the heel of the hand. Its tip finishes below the
@@ -59,20 +59,21 @@ const HAND =
  * the palm's own outline changes nothing except where the rim light falls.
  */
 const THUMB =
-  "M 138 241 C 130 225, 138 209, 154 204 C 172 199, 194 199, 202 207 " +
-  "C 207 213, 202 221, 192 224 C 176 229, 158 235, 148 242 " +
-  "C 142 246, 140 245, 138 241 Z";
+  "M 140 236 C 134 223, 141 211, 155 207 C 170 203, 188 204, 195 211 " +
+  "C 199 216, 195 222, 187 224 C 174 227, 159 232, 150 237 " +
+  "C 145 240, 142 239, 140 236 Z";
 
 /** Outer contour of the hand, lit by the sky behind it. */
 const HAND_RIM =
   "M 160 92 C 142 90, 127 106, 122 130 C 116 152, 116 174, 122 192 " +
-  "C 126 206, 128 216, 124 226 L 62 282";
+  "C 126 204, 128 214, 126 224 L 76 284";
 
 /** Where the thumb crosses in front of the palm. */
-const THUMB_RIM = "M 138 241 C 130 225, 138 209, 154 204 C 172 199, 194 199, 202 207";
+const THUMB_RIM =
+  "M 140 236 C 134 223, 141 211, 155 207 C 170 203, 188 204, 195 211";
 
 /** The fold at the wrist, which is what sells the narrowing as anatomy. */
-const WRIST_CREASE = "M 97 252 C 119 266, 143 270, 163 262";
+const WRIST_CREASE = "M 106 250 C 126 264, 148 268, 166 260";
 
 /**
  * One finger, swept along a curved spine.
@@ -99,7 +100,15 @@ type Spine = [
   bow: number,
 ];
 
-function sweep(bx: number, by: number, tx: number, ty: number, bh: number, th: number, bow: number) {
+function sweep(
+  bx: number,
+  by: number,
+  tx: number,
+  ty: number,
+  bh: number,
+  th: number,
+  bow: number,
+) {
   const cx = (bx + tx) / 2;
   const cy = (by + ty) / 2 - bow;
 
@@ -179,24 +188,18 @@ const RIGHT_KNUCKLE = 330;
  * is where it sits on a camera about to be fired. So the right hand shows three
  * wrapping fingers and this one, and the left shows four.
  */
-const SHUTTER_FINGER: Spine = [
-  336, 116, 300, 90, 8.5, 5, 9,
-];
+const SHUTTER_FINGER: Spine = [336, 116, 300, 90, 8.5, 5, 9];
 
 export function HandsWithCamera({ className = "" }: { className?: string }) {
   const leftWraps = FINGERS;
   // The right index is on the shutter, so it does not also wrap the edge.
   const rightWraps = FINGERS.slice(1);
 
-  const spine = (bx: number, dir: 1 | -1, f: (typeof FINGERS)[number]): Spine => [
-    bx,
-    f.y,
-    bx + dir * f.w,
-    f.y + f.curl,
-    f.bh,
-    f.th,
-    f.bow,
-  ];
+  const spine = (
+    bx: number,
+    dir: 1 | -1,
+    f: (typeof FINGERS)[number],
+  ): Spine => [bx, f.y, bx + dir * f.w, f.y + f.curl, f.bh, f.th, f.bow];
 
   const MIRROR = "translate(480 0) scale(-1 1)";
 
@@ -233,125 +236,175 @@ export function HandsWithCamera({ className = "" }: { className?: string }) {
         </radialGradient>
       </defs>
 
-      {/* ---- hands, behind the camera so the body covers what it should ---- */}
-      <g fill={HAND_FILL}>
-        <path d={HAND} />
-        <path d={THUMB} />
-        <g transform={MIRROR}>
+      {/* Nobody holds a camera level. Two degrees is enough to stop this
+          reading as an icon and start reading as something in someone's
+          hands, and it is small enough that the mirrored right hand still
+          lines up with the left. */}
+      <g transform="rotate(-2.2 240 210)">
+        {/* ---- hands, behind the camera so the body covers what it should ---- */}
+        <g fill={HAND_FILL}>
           <path d={HAND} />
           <path d={THUMB} />
-        </g>
-      </g>
-
-      {/* ---- camera ---- */}
-      <g>
-        {/* behind the body, so they merge into it at the seam */}
-        <path d={PRISM} fill={TOP_FILL} />
-        <circle cx="198" cy="92" r="9" fill={TOP_FILL} />
-        <rect x="290" y="84" width="26" height="13" rx="6.5" fill={TOP_FILL} />
-
-        {/* top plate, stepping back from the front face */}
-        <rect x={BODY.x} y={BODY.y} width={BODY.w} height="15" rx="6" fill={TOP_FILL} />
-        <rect
-          x={BODY.x}
-          y={BODY.y + 8}
-          width={BODY.w}
-          height={BODY.h - 8}
-          rx={BODY.r}
-          fill="url(#bodyFace)"
-        />
-
-        {/* The front element takes the whole sky, so it is the one bright
-            thing here and everything else reads against it. */}
-        <circle cx={LENS.cx} cy={LENS.cy} r={LENS.barrel + 26} fill="url(#lensGlow)" />
-        <circle cx={LENS.cx} cy={LENS.cy} r={LENS.barrel} fill={BARREL_FILL} />
-        <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill={GLASS_FILL} />
-      </g>
-
-      {/* ---- fingers, in front of the camera and darker for it ---- */}
-      <g fill={HAND_FILL}>
-        {leftWraps.map((f, i) => (
-          <path key={`l${i}`} d={finger(...spine(LEFT_KNUCKLE, 1, f))} />
-        ))}
-        {rightWraps.map((f, i) => (
-          <path key={`r${i}`} d={finger(...spine(RIGHT_KNUCKLE, -1, f))} />
-        ))}
-        <path d={finger(...SHUTTER_FINGER)} />
-      </g>
-
-      {/* ---- light ---- */}
-      <g fill="none">
-        <path d={PRISM} fill="url(#camRim)" opacity="0.55" />
-        <rect x={BODY.x} y={BODY.y} width={BODY.w} height="3.5" rx="1.75" fill="url(#camRim)" />
-
-        {/* glass: a rim, a sheen, and one small specular */}
-        <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill="url(#lensGlint)" />
-        <ellipse
-          cx="219"
-          cy="127"
-          rx="10"
-          ry="4"
-          transform="rotate(-42 219 127)"
-          fill="#cfe0ff"
-          opacity="0.2"
-        />
-        <circle
-          cx={LENS.cx}
-          cy={LENS.cy}
-          r={LENS.r}
-          stroke="#b8d4ff"
-          strokeOpacity="0.44"
-          strokeWidth="1.3"
-        />
-        <circle
-          cx={LENS.cx}
-          cy={LENS.cy}
-          r={LENS.barrel}
-          stroke="#b8d4ff"
-          strokeOpacity="0.17"
-          strokeWidth="1.1"
-        />
-
-        {/* Contour, thumb and wrist, on both hands. These are the internal
-            edges: without them the palm and forearm are one dark shape. */}
-        {[
-          { key: "l", t: undefined },
-          { key: "r", t: MIRROR },
-        ].map((side) => (
-          <g key={side.key} transform={side.t}>
-            <path d={HAND_RIM} stroke="url(#handRim)" strokeWidth="2" />
-            <path
-              d={THUMB_RIM}
-              stroke="#b8d4ff"
-              strokeOpacity="0.26"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-            <path
-              d={WRIST_CREASE}
-              stroke="#b8d4ff"
-              strokeOpacity="0.16"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
+          <g transform={MIRROR}>
+            <path d={HAND} />
+            <path d={THUMB} />
           </g>
-        ))}
+        </g>
 
-        {/* Sky along the top of each finger, and nothing along the bottom. */}
-        {[
-          ...leftWraps.map((f, i) => ({ k: `le${i}`, d: fingerLit(...spine(LEFT_KNUCKLE, 1, f)) })),
-          ...rightWraps.map((f, i) => ({ k: `re${i}`, d: fingerLit(...spine(RIGHT_KNUCKLE, -1, f)) })),
-          { k: "shutter", d: fingerLit(...SHUTTER_FINGER) },
-        ].map((p) => (
+        {/* ---- camera ---- */}
+        <g>
+          {/* behind the body, so they merge into it at the seam */}
+          <path d={PRISM} fill={TOP_FILL} />
+          <circle cx="198" cy="92" r="9" fill={TOP_FILL} />
+          <rect
+            x="290"
+            y="84"
+            width="26"
+            height="13"
+            rx="6.5"
+            fill={TOP_FILL}
+          />
+
+          {/* top plate, stepping back from the front face */}
+          <rect
+            x={BODY.x}
+            y={BODY.y}
+            width={BODY.w}
+            height="15"
+            rx="6"
+            fill={TOP_FILL}
+          />
+          <rect
+            x={BODY.x}
+            y={BODY.y + 8}
+            width={BODY.w}
+            height={BODY.h - 8}
+            rx={BODY.r}
+            fill="url(#bodyFace)"
+          />
+
+          {/* The front element takes the whole sky, so it is the one bright
+            thing here and everything else reads against it. */}
+          <circle
+            cx={LENS.cx}
+            cy={LENS.cy}
+            r={LENS.barrel + 26}
+            fill="url(#lensGlow)"
+          />
+          <circle
+            cx={LENS.cx}
+            cy={LENS.cy}
+            r={LENS.barrel}
+            fill={BARREL_FILL}
+          />
+          <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill={GLASS_FILL} />
+        </g>
+
+        {/* ---- fingers, in front of the camera and darker for it ---- */}
+        <g fill={HAND_FILL}>
+          {leftWraps.map((f, i) => (
+            <path key={`l${i}`} d={finger(...spine(LEFT_KNUCKLE, 1, f))} />
+          ))}
+          {rightWraps.map((f, i) => (
+            <path key={`r${i}`} d={finger(...spine(RIGHT_KNUCKLE, -1, f))} />
+          ))}
+          <path d={finger(...SHUTTER_FINGER)} />
+        </g>
+
+        {/* ---- light ---- */}
+        <g fill="none">
+          <path d={PRISM} fill="url(#camRim)" opacity="0.28" />
           <path
-            key={p.k}
-            d={p.d}
-            stroke="#b8d4ff"
-            strokeOpacity="0.34"
-            strokeWidth="1.1"
+            d="M 218 67 L 262 67"
+            stroke="#cfe0ff"
+            strokeOpacity="0.5"
+            strokeWidth="2"
             strokeLinecap="round"
           />
-        ))}
+          <rect
+            x={BODY.x}
+            y={BODY.y}
+            width={BODY.w}
+            height="3.5"
+            rx="1.75"
+            fill="url(#camRim)"
+          />
+
+          {/* glass: a rim, a sheen, and one small specular */}
+          <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill="url(#lensGlint)" />
+          <ellipse
+            cx="219"
+            cy="127"
+            rx="10"
+            ry="4"
+            transform="rotate(-42 219 127)"
+            fill="#cfe0ff"
+            opacity="0.2"
+          />
+          <circle
+            cx={LENS.cx}
+            cy={LENS.cy}
+            r={LENS.r}
+            stroke="#b8d4ff"
+            strokeOpacity="0.44"
+            strokeWidth="1.3"
+          />
+          <circle
+            cx={LENS.cx}
+            cy={LENS.cy}
+            r={LENS.barrel}
+            stroke="#b8d4ff"
+            strokeOpacity="0.17"
+            strokeWidth="1.1"
+          />
+
+          {/* Contour, thumb and wrist, on both hands. These are the internal
+            edges: without them the palm and forearm are one dark shape. */}
+          {[
+            { key: "l", t: undefined },
+            { key: "r", t: MIRROR },
+          ].map((side) => (
+            <g key={side.key} transform={side.t}>
+              <path d={HAND_RIM} stroke="url(#handRim)" strokeWidth="2" />
+              <path
+                d={THUMB_RIM}
+                stroke="#b8d4ff"
+                strokeOpacity="0.2"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <path
+                d={WRIST_CREASE}
+                stroke="#b8d4ff"
+                strokeOpacity="0.16"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </g>
+          ))}
+
+          {/* Sky along the top of each finger, and nothing along the bottom. */}
+          {[
+            ...leftWraps.map((f, i) => ({
+              k: `le${i}`,
+              d: fingerLit(...spine(LEFT_KNUCKLE, 1, f)),
+            })),
+            ...rightWraps.map((f, i) => ({
+              k: `re${i}`,
+              d: fingerLit(...spine(RIGHT_KNUCKLE, -1, f)),
+            })),
+            { k: "shutter", d: fingerLit(...SHUTTER_FINGER) },
+          ].map((p) => (
+            <path
+              key={p.k}
+              d={p.d}
+              stroke="#b8d4ff"
+              strokeOpacity="0.34"
+              strokeWidth="1.1"
+              strokeLinecap="round"
+            />
+          ))}
+        </g>
       </g>
     </svg>
   );

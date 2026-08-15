@@ -18,7 +18,7 @@
 let ctx: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
 
-function context(): AudioContext | null {
+function context(resume = true): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!ctx) {
     const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -27,7 +27,7 @@ function context(): AudioContext | null {
   }
   // Autoplay policy suspends a context created before a gesture. The visitor
   // has pressed a button by the time this runs, so it is allowed to resume.
-  if (ctx.state === "suspended") void ctx.resume();
+  if (resume && ctx.state === "suspended") void ctx.resume();
   return ctx;
 }
 
@@ -124,12 +124,26 @@ export function playShutter(volume = 0.85) {
 }
 
 /**
- * Build the context ahead of time, inside a real gesture.
+ * Allocate the context while nothing is happening.
  *
- * Creating it at the moment of the shutter would work, but a context spun up
- * cold has to allocate and resume, and that can land a few milliseconds after
- * the flash it is supposed to be simultaneous with.
+ * Measured, because it was not a few milliseconds: constructing an
+ * AudioContext blocks the main thread for roughly a third of a second on a
+ * throttled machine. Doing that inside the click meant the press and the
+ * camera starting to move were separated by exactly that, which is the whole
+ * of the stutter people saw on pressing the button. Stubbing the constructor
+ * took the same handler from 346ms to 2ms.
+ *
+ * Allocating early is allowed. A context built before any gesture simply
+ * starts out suspended, which costs nothing, and resuming it later inside a
+ * real gesture is what the autoplay policy actually asks for. So the
+ * expensive half happens at idle and only the cheap half happens on the
+ * press.
  */
+export function prepareShutter() {
+  context(false);
+}
+
+/** Resume inside the gesture. Cheap, as long as prepareShutter already ran. */
 export function warmShutter() {
   context();
 }

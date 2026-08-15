@@ -24,7 +24,7 @@
  * about repetition: every finger was a cone with a linear taper, every finger
  * followed a single arc, and the right hand was the left one flipped exactly.
  * Fingers have joints, they straighten at the base and curl at the tip, and no
- * two hands match. See sweep, widthAt and RIGHT_VARIATION below.
+ * two hands match. See sweep and widthAt below.
  */
 
 /**
@@ -73,16 +73,6 @@ const HAND =
   "C 116 246, 92 274, 62 300 C 44 318, 30 348, 26 380 L 118 380 " +
   "C 126 350, 132 322, 138 300 " +
   "C 154 272, 170 250, 180 232 L 188 200 L 186 96 Z";
-
-/**
- * Thumb, hooked up out of the heel of the hand. Its tip finishes below the
- * bottom of the camera against open sky, because a thumb drawn entirely inside
- * the palm's own outline changes nothing except where the rim light falls.
- */
-const THUMB =
-  "M 139 230 C 134 219, 140 208, 152 204 C 163 200, 176 201, 184 206 " +
-  "C 189 209, 188 214, 182 216 C 172 219, 158 223, 149 229 " +
-  "C 144 232, 141 233, 139 230 Z";
 
 /** Outer contour of the hand, lit by the sky behind it. */
 /**
@@ -292,70 +282,17 @@ function fingerShade(spine: Spine, weight = 3.6): string {
  *
  * Lengths and spacing both vary. Even bars at even intervals read as a grille.
  */
-const FINGERS = [
-  { y: 107, w: 44, bh: 9.0, th: 5.5, curl: 15, bow: 7, hook: 5 },
-  { y: 133, w: 46, bh: 10.0, th: 6.0, curl: 17, bow: 8, hook: 6 },
-  { y: 157, w: 45, bh: 9.0, th: 5.5, curl: 15, bow: 7, hook: 5 },
-  { y: 178, w: 36, bh: 7.5, th: 4.5, curl: 10, bow: 5, hook: 4 },
+const THUMBS: { k: string; s: Spine }[] = [
+  // Left, reaching up and inward across the body.
+  { k: "tl", s: [150, 205, 202, 160, 15.5, 11.0, 5, 2] },
+  // Right, at its own angle and a shade smaller. Two thumbs identical to the
+  // pixel is the same manufactured symmetry the four fingers used to have.
+  { k: "tr", s: [330, 202, 281, 158, 14.6, 10.4, 4, 3] },
 ];
-
-/**
- * The right hand is not the left one flipped.
- *
- * Mirroring a single table gave two hands identical to the pixel, and that is
- * the most machine-looking thing a drawing like this can do: real hands differ
- * from each other, and the eye reads perfect symmetry as manufacture long
- * before it can say why. These are small, a couple of pixels each, applied to
- * the right hand's three wrapping fingers. Fixed numbers rather than anything
- * random, so the drawing is the same every render and stays tunable.
- */
-const RIGHT_VARIATION = [
-  { dy: 2.5, dw: -3, dbow: 1, dhook: -1.5 },
-  { dy: 1, dw: 2.5, dbow: -1.5, dhook: 1 },
-  { dy: 3, dw: -2, dbow: 0.5, dhook: 2 },
-];
-
-/** Knuckle bases, level with the body edge so the fingers come from behind it. */
-const LEFT_KNUCKLE = 150;
-const RIGHT_KNUCKLE = 330;
-
-/*
- * There was a fifth finger here, the right index reaching up to the shutter
- * release. It was right about how a camera is held and wrong about what this
- * drawing can show. Seen flat from the front, a finger on the top plate has to
- * be drawn above the body's outline, so it read as a loose shape hovering over
- * the camera rather than a finger resting on a button.
- *
- * Worse, taking that finger off the front face left the right hand with three
- * fingers and a gap where the fourth should be. The two hands stopped matching
- * in the one way that matters, and that gap is what kept reading as broken.
- * Both hands wrap all four now; the release is still drawn on the top plate.
- */
 
 const MIRROR = "translate(480 0) scale(-1 1)";
 /** Same mirror, plus a couple of degrees so the right hand sits at its own angle. */
 const MIRROR_RIGHT = `${MIRROR} rotate(2 168 206)`;
-
-type Variation = (typeof RIGHT_VARIATION)[number];
-
-function spineFor(
-  bx: number,
-  dir: 1 | -1,
-  f: (typeof FINGERS)[number],
-  v?: Variation,
-): Spine {
-  const y = f.y + (v?.dy ?? 0);
-  return [
-    bx,
-    y,
-    bx + dir * (f.w + (v?.dw ?? 0)),
-    y + f.curl,
-    f.bh,
-    f.th,
-    f.bow + (v?.dbow ?? 0),
-    f.hook + (v?.dhook ?? 0),
-  ];
-}
 
 /**
  * Corner marks inside the glass, on the picture.
@@ -387,17 +324,7 @@ export function HandsWithCamera({
   /** The sky measures this to know where to put the picture. */
   lensRef?: React.Ref<SVGCircleElement>;
 }) {
-  const leftWraps = FINGERS;
-  // The right index is on the shutter, so it does not also wrap the edge.
-  const rightWraps = FINGERS.slice(1);
-
-  const spines: { k: string; s: Spine }[] = [
-    ...leftWraps.map((f, i) => ({ k: `l${i}`, s: spineFor(LEFT_KNUCKLE, 1, f) })),
-    ...rightWraps.map((f, i) => ({
-      k: `r${i}`,
-      s: spineFor(RIGHT_KNUCKLE, -1, f, RIGHT_VARIATION[i]),
-    })),
-  ];
+  const spines = THUMBS;
 
   return (
     <svg viewBox="0 0 480 380" className={className} aria-hidden>
@@ -438,7 +365,6 @@ export function HandsWithCamera({
         */}
         <clipPath id="handClip">
           <path d={HAND} />
-          <path d={THUMB} />
         </clipPath>
         <mask id="glassHole">
           <rect x="0" y="0" width="480" height="380" fill="#fff" />
@@ -446,11 +372,11 @@ export function HandsWithCamera({
         </mask>
         {/* Warm at the top where the sky reaches it, almost gone by the elbow. */}
         <linearGradient id="handSkin" x1="0" y1="88" x2="0" y2="380" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#d99a76" />
-          <stop offset="26%" stopColor="#c08260" />
-          <stop offset="58%" stopColor="#95604a" />
-          <stop offset="82%" stopColor="#6a4335" />
-          <stop offset="100%" stopColor="#42291f" />
+          <stop offset="0%" stopColor="#f2b892" />
+          <stop offset="26%" stopColor="#e2a179" />
+          <stop offset="58%" stopColor="#c07f5f" />
+          <stop offset="82%" stopColor="#95604a" />
+          <stop offset="100%" stopColor="#6a4335" />
         </linearGradient>
         {/*
           Skin is not opaque. Lit from behind it passes red at the thin places,
@@ -500,12 +426,24 @@ export function HandsWithCamera({
           hands. */}
       <g transform="rotate(-2.2 240 210)">
         {/* ---- hands, behind the camera so the body covers what it should ---- */}
+        {/*
+          Form is painted straight onto the hand shape rather than clipped.
+
+          These used to be full-window rects behind a clipPath, which is a
+          separate mask buffer the size of the drawing, allocated and composited
+          every time the layer rasterises. The camera scales to 2.15 on the way
+          in, so that was happening at increasing size on every frame of the
+          push. The gradients are in user space already, so filling the hand
+          outline with them lands the same pixels and skips the mask entirely.
+        */}
         <g fill={HAND_FILL}>
           <path d={HAND} />
-          <path d={THUMB} />
+          <path d={HAND} fill="url(#armTurn)" />
+          <path d={HAND} fill="url(#knuckleWarm)" />
           <g transform={MIRROR_RIGHT}>
             <path d={HAND} />
-            <path d={THUMB} />
+            <path d={HAND} fill="url(#armTurn)" />
+            <path d={HAND} fill="url(#knuckleWarm)" />
           </g>
         </g>
 
@@ -657,8 +595,6 @@ export function HandsWithCamera({
                 the silhouette where the tip clears the body.
               */}
               <g clipPath="url(#handClip)">
-                <rect x="0" y="0" width="480" height="380" fill="url(#armTurn)" />
-                <rect x="0" y="0" width="480" height="380" fill="url(#knuckleWarm)" />
                 <path
                   d={WRIST_CREASE}
                   stroke="url(#creaseFade)"

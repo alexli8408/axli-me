@@ -5,7 +5,7 @@ import { Radio } from "@/components/audio/Radio";
 import { CameraGate, type GatePhase } from "@/components/gate/CameraGate";
 import { Headline } from "@/components/Headline";
 import { identity } from "@/content/resume";
-import { playShutter, warmShutter } from "@/lib/shutter";
+import { playShutter, prepareShutter, warmShutter } from "@/lib/shutter";
 import { useSectionOverlays } from "@/components/overlay/SectionOverlays";
 import { Constellations } from "./Constellations";
 import { StarField, type SkyView } from "./StarField";
@@ -112,9 +112,22 @@ export function SkyScene() {
     return () => clearTimeout(t);
   }, []);
 
+  // Allocate the audio context while the visitor is still reading the page.
+  // Building it inside the click blocked the main thread long enough that the
+  // camera did not start moving until a third of a second after the press.
+  useEffect(() => {
+    const idle = window.requestIdleCallback;
+    if (idle) {
+      const id = idle(() => prepareShutter(), { timeout: 2500 });
+      return () => window.cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(prepareShutter, 900);
+    return () => window.clearTimeout(t);
+  }, []);
+
   const enter = useCallback(() => {
-    // Built here, inside the click, so it is ready rather than being allocated
-    // at the moment it has to make a sound.
+    // Already allocated by now, so this is only the resume that the autoplay
+    // policy wants to see happen inside a real gesture.
     warmShutter();
     setPhase((p) => {
       if (p !== "gate") return p;

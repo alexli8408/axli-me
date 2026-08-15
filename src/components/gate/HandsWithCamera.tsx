@@ -67,9 +67,19 @@ const PRISM = "M 206 100 L 218 66 L 262 66 L 274 100 Z";
  * palm meets the base of the little finger, because an outline made of two
  * perfect curves is the outline of a mitten.
  */
+const OUTER =
+  "C 152 90, 130 93, 120 107 " + // over the index knuckle
+  "C 116 115, 121 121, 124 127 " +
+  "C 117 133, 112 140, 113 149 " + // middle, the longest and the furthest out
+  "C 114 156, 120 159, 123 163 " +
+  "C 117 169, 113 176, 115 184 " + // ring
+  "C 116 190, 121 193, 124 197 " +
+  "C 120 203, 117 209, 120 216 " + // little, the shallowest
+  "C 122 221, 125 223, 126 226 ";
+
 const HAND =
-  "M 172 96 C 150 90, 128 103, 122 126 C 118 141, 116 152, 119 162 " +
-  "C 121 172, 116 180, 121 192 C 126 204, 128 214, 126 224 " +
+  "M 172 96 " +
+  OUTER +
   "C 116 246, 92 274, 62 300 C 44 318, 30 348, 26 380 L 118 380 " +
   "C 126 350, 132 322, 138 300 " +
   "C 154 272, 170 250, 180 232 L 188 200 L 186 96 Z";
@@ -85,35 +95,24 @@ const HAND =
  * from here on, so it cannot come up short again.
  */
 const HAND_RIM =
-  "M 160 92 C 142 90, 127 105, 122 126 C 118 141, 116 152, 119 162 " +
-  "C 121 172, 116 180, 121 192 C 126 204, 128 214, 126 224 " +
+  "M 168 94 " +
+  OUTER +
   "C 116 246, 92 274, 62 300 C 44 318, 30 348, 26 380";
 
 /**
- * The knuckles, which are the only part of the fingers still visible.
+ * The seams between those fingers.
  *
- * With the fingers behind the body the hand became one smooth arc, and a hand
- * whose outline has no fingers in it is a mitten. What you actually see from
- * in front is the row of knuckles along the top edge, where the fingers fold
- * away behind: four bumps of falling size, since the hand narrows toward the
- * little finger.
- *
- * Circles unioned into the hand rather than curves bent into its outline. The
- * outline is one closed path that also has to close the arm eighty units
- * further down, and scalloping it in place meant rebuilding all of that to
- * change the shape of a knuckle.
+ * The lobes alone are only a wavy edge. What says the wave is four fingers is
+ * that almost no light reaches the crack where two of them meet, so each
+ * valley in the outline carries a short shadow running back into the hand,
+ * fading as it goes. Shortest at the little finger, since less of it is
+ * wrapped around anything.
  */
-const knuckle = (cx: number, cy: number, r: number) =>
-  `M ${cx - r} ${cy} a ${r} ${r} 0 1 0 ${r * 2} 0 a ${r} ${r} 0 1 0 ${-r * 2} 0`;
-
-const KNUCKLES = [
-  [147, 100, 8.6],
-  [136, 107, 8.9],
-  [126, 116, 8.2],
-  [120, 128, 7.0],
-]
-  .map(([x, y, r]) => knuckle(x, y, r))
-  .join(" ");
+const SEAMS = [
+  "M 125 128 C 133 131, 143 132, 152 132",
+  "M 124 163 C 133 166, 145 167, 156 167",
+  "M 125 197 C 133 199, 143 200, 152 200",
+];
 
 type Spine = [
   bx: number,
@@ -409,6 +408,12 @@ export function HandsWithCamera({
           <stop offset="55%" stopColor="#f0946a" stopOpacity="0.11" />
           <stop offset="100%" stopColor="#e08a5f" stopOpacity="0" />
         </radialGradient>
+        {/* Dark where the fingers touch, gone before it reaches the body edge. */}
+        <linearGradient id="seamFade" x1="120" y1="0" x2="158" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#3a1d12" stopOpacity="0.62" />
+          <stop offset="55%" stopColor="#3a1d12" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#3a1d12" stopOpacity="0" />
+        </linearGradient>
         <radialGradient id="lensGlow">
           <stop offset="35%" stopColor="#7fa6f0" stopOpacity="0.2" />
           <stop offset="100%" stopColor="#7fa6f0" stopOpacity="0" />
@@ -431,13 +436,13 @@ export function HandsWithCamera({
           outline with them lands the same pixels and skips the mask entirely.
         */}
         <g fill={HAND_FILL}>
-          <path d={`${HAND} ${KNUCKLES}`} />
-          <path d={`${HAND} ${KNUCKLES}`} fill="url(#armTurn)" />
-          <path d={`${HAND} ${KNUCKLES}`} fill="url(#knuckleWarm)" />
+          <path d={HAND} />
+          <path d={HAND} fill="url(#armTurn)" />
+          <path d={HAND} fill="url(#knuckleWarm)" />
           <g transform={MIRROR_RIGHT}>
-            <path d={`${HAND} ${KNUCKLES}`} />
-            <path d={`${HAND} ${KNUCKLES}`} fill="url(#armTurn)" />
-            <path d={`${HAND} ${KNUCKLES}`} fill="url(#knuckleWarm)" />
+            <path d={HAND} />
+            <path d={HAND} fill="url(#armTurn)" />
+            <path d={HAND} fill="url(#knuckleWarm)" />
           </g>
         </g>
 
@@ -581,14 +586,23 @@ export function HandsWithCamera({
             { key: "l", t: undefined },
             { key: "r", t: MIRROR_RIGHT },
           ].map((side) => (
-            <path
-              key={side.key}
-              transform={side.t}
-              d={HAND_RIM}
-              stroke="url(#handRim)"
-              strokeWidth="1.9"
-              strokeLinecap="round"
-            />
+            <g key={side.key} transform={side.t}>
+              {SEAMS.map((d, i) => (
+                <path
+                  key={i}
+                  d={d}
+                  stroke="url(#seamFade)"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                />
+              ))}
+              <path
+                d={HAND_RIM}
+                stroke="url(#handRim)"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+              />
+            </g>
           ))}
 
           {/* Underside first, then the sky on top, so the light wins where they

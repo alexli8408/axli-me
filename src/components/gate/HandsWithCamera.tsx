@@ -89,8 +89,31 @@ const HAND_RIM =
   "C 121 172, 116 180, 121 192 C 126 204, 128 214, 126 224 " +
   "C 116 246, 92 274, 62 300 C 44 318, 30 348, 26 380";
 
-/** The fold at the wrist, which is what sells the narrowing as anatomy. */
-const WRIST_CREASE = "M 110 252 C 128 265, 148 268, 164 261";
+/**
+ * The knuckles, which are the only part of the fingers still visible.
+ *
+ * With the fingers behind the body the hand became one smooth arc, and a hand
+ * whose outline has no fingers in it is a mitten. What you actually see from
+ * in front is the row of knuckles along the top edge, where the fingers fold
+ * away behind: four bumps of falling size, since the hand narrows toward the
+ * little finger.
+ *
+ * Circles unioned into the hand rather than curves bent into its outline. The
+ * outline is one closed path that also has to close the arm eighty units
+ * further down, and scalloping it in place meant rebuilding all of that to
+ * change the shape of a knuckle.
+ */
+const knuckle = (cx: number, cy: number, r: number) =>
+  `M ${cx - r} ${cy} a ${r} ${r} 0 1 0 ${r * 2} 0 a ${r} ${r} 0 1 0 ${-r * 2} 0`;
+
+const KNUCKLES = [
+  [147, 100, 8.6],
+  [136, 107, 8.9],
+  [126, 116, 8.2],
+  [120, 128, 7.0],
+]
+  .map(([x, y, r]) => knuckle(x, y, r))
+  .join(" ");
 
 type Spine = [
   bx: number,
@@ -363,9 +386,6 @@ export function HandsWithCamera({
           The wrist crease starts at x=106 and the hand's outer edge at that
           height is 114, so eight pixels of it were hanging in open sky.
         */}
-        <clipPath id="handClip">
-          <path d={HAND} />
-        </clipPath>
         <mask id="glassHole">
           <rect x="0" y="0" width="480" height="380" fill="#fff" />
           <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill="#000" />
@@ -389,32 +409,6 @@ export function HandsWithCamera({
           <stop offset="55%" stopColor="#f0946a" stopOpacity="0.11" />
           <stop offset="100%" stopColor="#e08a5f" stopOpacity="0" />
         </radialGradient>
-        {/*
-          The wrist fold, fading out at both ends.
-
-          It was a flat stroke of constant width in the same cold blue as the
-          sky edges, running the full width of the arm and stopping dead at each
-          end. That is a panel gap, which is exactly how it read. A crease in
-          skin is darker than the skin around it rather than lighter, it is
-          deepest in the middle, and it has no ends.
-        */}
-        {/*
-          The forearm is a cylinder too, and it was the last flat thing left.
-          The outer edge already catches the sky, so this is the other half:
-          the inner side turning away from it, toward the body and the gap
-          between the arms where no light comes from at all.
-        */}
-        <linearGradient id="armTurn" x1="34" y1="0" x2="192" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#2b1409" stopOpacity="0" />
-          <stop offset="48%" stopColor="#2b1409" stopOpacity="0.1" />
-          <stop offset="100%" stopColor="#2b1409" stopOpacity="0.44" />
-        </linearGradient>
-        <linearGradient id="creaseFade" x1="106" y1="0" x2="168" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#4a2a1e" stopOpacity="0" />
-          <stop offset="30%" stopColor="#4a2a1e" stopOpacity="0.42" />
-          <stop offset="62%" stopColor="#4a2a1e" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#4a2a1e" stopOpacity="0" />
-        </linearGradient>
         <radialGradient id="lensGlow">
           <stop offset="35%" stopColor="#7fa6f0" stopOpacity="0.2" />
           <stop offset="100%" stopColor="#7fa6f0" stopOpacity="0" />
@@ -437,13 +431,13 @@ export function HandsWithCamera({
           outline with them lands the same pixels and skips the mask entirely.
         */}
         <g fill={HAND_FILL}>
-          <path d={HAND} />
-          <path d={HAND} fill="url(#armTurn)" />
-          <path d={HAND} fill="url(#knuckleWarm)" />
+          <path d={`${HAND} ${KNUCKLES}`} />
+          <path d={`${HAND} ${KNUCKLES}`} fill="url(#armTurn)" />
+          <path d={`${HAND} ${KNUCKLES}`} fill="url(#knuckleWarm)" />
           <g transform={MIRROR_RIGHT}>
-            <path d={HAND} />
-            <path d={HAND} fill="url(#armTurn)" />
-            <path d={HAND} fill="url(#knuckleWarm)" />
+            <path d={`${HAND} ${KNUCKLES}`} />
+            <path d={`${HAND} ${KNUCKLES}`} fill="url(#armTurn)" />
+            <path d={`${HAND} ${KNUCKLES}`} fill="url(#knuckleWarm)" />
           </g>
         </g>
 
@@ -574,35 +568,27 @@ export function HandsWithCamera({
             strokeWidth="1.1"
           />
 
-          {/* Contour, thumb and wrist, on both hands. These are the internal
-              edges: without them the palm and forearm are one dark shape. */}
+          {/*
+            The sky along each hand's outer edge, and nothing across it.
+
+            There was a fold drawn over the wrist to mark where the hand ends
+            and the forearm begins. It never stopped reading as a join: a line
+            all the way across a limb is what a limb made of parts has, and
+            softening it or warming it only changed what kind of part. The
+            silhouette already narrows there, which is what says wrist.
+          */}
           {[
             { key: "l", t: undefined },
             { key: "r", t: MIRROR_RIGHT },
           ].map((side) => (
-            <g key={side.key} transform={side.t}>
-              <path
-                d={HAND_RIM}
-                stroke="url(#handRim)"
-                strokeWidth="1.9"
-                strokeLinecap="round"
-              />
-              {/*
-                The thumb has no rim any more. Seen from in front of the lens
-                it sits inside the palm's own outline and never makes an edge,
-                so lighting one left a hooked line hanging in the middle of the
-                hand looking like a scratch. The shape stays: it still bulges
-                the silhouette where the tip clears the body.
-              */}
-              <g clipPath="url(#handClip)">
-                <path
-                  d={WRIST_CREASE}
-                  stroke="url(#creaseFade)"
-                  strokeWidth="2.6"
-                  strokeLinecap="round"
-                />
-              </g>
-            </g>
+            <path
+              key={side.key}
+              transform={side.t}
+              d={HAND_RIM}
+              stroke="url(#handRim)"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+            />
           ))}
 
           {/* Underside first, then the sky on top, so the light wins where they

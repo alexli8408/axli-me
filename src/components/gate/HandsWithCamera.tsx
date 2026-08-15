@@ -27,8 +27,22 @@
  * two hands match. See sweep, widthAt and RIGHT_VARIATION below.
  */
 
-/** Nearly black. The hands are closest to the viewer, so they take the least sky. */
-const HAND_FILL = "currentColor";
+/**
+ * Skin, at night, from in front.
+ *
+ * Flat near-black was the safe choice and it was the wrong one: with no tone of
+ * its own, every finger was carried entirely by the rim light along its top
+ * edge, which is why the pair read as machined rather than as hands. A single
+ * flat brown is not the fix either, because a large area of one value is a
+ * paper cutout whatever colour it is.
+ *
+ * So it is a gradient, in viewBox units rather than per shape, which matters:
+ * with objectBoundingBox each finger would get its own copy of the ramp and
+ * they would all shade identically. In user space the whole hand shares one
+ * light, so the knuckles nearest the sky are warmest and the forearm falls away
+ * into the dark as it comes toward the viewer and away from the sky.
+ */
+const HAND_FILL = "url(#handSkin)";
 const TOP_FILL = "#0b1220";
 const BARREL_FILL = "#070c16";
 
@@ -56,7 +70,8 @@ const PRISM = "M 206 100 L 218 66 L 262 66 L 274 100 Z";
 const HAND =
   "M 172 96 C 150 90, 128 103, 122 126 C 118 141, 116 152, 119 162 " +
   "C 121 172, 116 180, 121 192 C 126 204, 128 214, 126 224 " +
-  "C 116 246, 92 274, 62 300 L 138 300 " +
+  "C 116 246, 92 274, 62 300 C 44 318, 30 348, 26 380 L 118 380 " +
+  "C 126 350, 132 322, 138 300 " +
   "C 154 272, 170 250, 180 232 L 188 200 L 186 96 Z";
 
 /**
@@ -82,7 +97,7 @@ const THUMB =
 const HAND_RIM =
   "M 160 92 C 142 90, 127 105, 122 126 C 118 141, 116 152, 119 162 " +
   "C 121 172, 116 180, 121 192 C 126 204, 128 214, 126 224 " +
-  "C 116 246, 92 274, 62 300";
+  "C 116 246, 92 274, 62 300 C 44 318, 30 348, 26 380";
 
 /** The fold at the wrist, which is what sells the narrowing as anatomy. */
 const WRIST_CREASE = "M 110 252 C 128 265, 148 268, 164 261";
@@ -357,7 +372,7 @@ export function HandsWithCamera({
   ];
 
   return (
-    <svg viewBox="0 0 480 300" className={className} aria-hidden>
+    <svg viewBox="0 0 480 380" className={className} aria-hidden>
       <defs>
         {/* Sky light catching the top edges, so the shape is a silhouette
             against the sky rather than a hole cut out of it. */}
@@ -398,9 +413,16 @@ export function HandsWithCamera({
           <path d={THUMB} />
         </clipPath>
         <mask id="glassHole">
-          <rect x="0" y="0" width="480" height="300" fill="#fff" />
+          <rect x="0" y="0" width="480" height="380" fill="#fff" />
           <circle cx={LENS.cx} cy={LENS.cy} r={LENS.r} fill="#000" />
         </mask>
+        {/* Warm at the top where the sky reaches it, almost gone by the elbow. */}
+        <linearGradient id="handSkin" x1="0" y1="88" x2="0" y2="380" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#3d2719" />
+          <stop offset="38%" stopColor="#2e1d15" />
+          <stop offset="72%" stopColor="#20140f" />
+          <stop offset="100%" stopColor="#150d0a" />
+        </linearGradient>
         <radialGradient id="lensGlow">
           <stop offset="35%" stopColor="#7fa6f0" stopOpacity="0.2" />
           <stop offset="100%" stopColor="#7fa6f0" stopOpacity="0" />

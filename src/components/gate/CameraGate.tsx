@@ -16,7 +16,7 @@ export type GatePhase = "rise" | "gate" | "push" | "shutter" | "zoom" | "ready";
  * the same arithmetic. Both sides import this, so they cannot drift.
  */
 export const CAMERA = {
-  /** The SVG is h-[46svh], and its viewBox is 480x300. */
+  /** The SVG box is 46svh once its overhang is discounted. */
   heightFraction: 0.46,
   aspect: 480 / 300,
   /**
@@ -139,7 +139,21 @@ export function CameraGate({
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        <HandsWithCamera className="h-[46svh] w-auto text-[#01030a]" lensRef={lensRef} />
+        {/*
+          Taller than the box it occupies, and hanging out of the bottom of it.
+
+          The drawing runs to y=380 but the arms are only meant to be seen to
+          y=300, and the negative margin pulls those last 80 units below the
+          wrapper. So the wrapper's own height is still 46svh, which is what
+          origin-bottom scales about and what the rise translates by, while the
+          arms carry on past the edge of the screen. On a phone the old drawing
+          ended exactly at the viewport bottom, and any browser chrome over it
+          exposed the straight line closing the arm.
+        */}
+        <HandsWithCamera
+          className="h-[58.267svh] mb-[-12.267svh] w-auto"
+          lensRef={lensRef}
+        />
       </div>
 
       {/* --- shutter: one white blink, over everything ---

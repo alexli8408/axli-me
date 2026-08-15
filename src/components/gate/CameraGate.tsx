@@ -151,7 +151,7 @@ export function CameraGate({
           exposed the straight line closing the arm.
         */}
         <HandsWithCamera
-          className="h-[58.267svh] mb-[-12.267svh] w-auto"
+          className="h-[58.267svh] mb-[-12.267svh] w-auto text-[#01030a]"
           lensRef={lensRef}
         />
       </div>

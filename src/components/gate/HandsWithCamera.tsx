@@ -253,6 +253,34 @@ function fingerLight(spine: Spine, weight = 2.4): string {
 }
 
 /**
+ * The turn under each finger, which is what makes it round.
+ *
+ * The lit edge alone only says where the light is. A cylinder needs the other
+ * side too: the surface curving away into shadow underneath. Without it every
+ * finger is a flat fill with a bright line on top, which is a painted stripe on
+ * a slab, and four of them side by side is a grille again.
+ *
+ * Wider and softer than the highlight, because a terminator is always broader
+ * than a specular, and it fades at both ends for the same reason the light
+ * does: at the knuckle the finger is not yet turning, and at the tip it has
+ * already turned.
+ */
+function fingerShade(spine: Spine, weight = 3.6): string {
+  const pts = sweep(...spine);
+  const outer: string[] = [];
+  const inner: string[] = [];
+
+  for (const s of pts) {
+    const fade = Math.pow(Math.sin(Math.PI * s.t), 0.45);
+    const rw = Math.min(s.wr * 0.9, weight * fade);
+    outer.push(at(s, -s.wr));
+    inner.push(at(s, -s.wr + rw));
+  }
+
+  return `M ${outer.join(" L ")} L ${inner.reverse().join(" L ")} Z`;
+}
+
+/**
  * Fingers wrapping the body edge, index at the top down to the little finger.
  *
  * Every tip stops short of the glass. Nobody grips a camera with their fingers
@@ -418,10 +446,48 @@ export function HandsWithCamera({
         </mask>
         {/* Warm at the top where the sky reaches it, almost gone by the elbow. */}
         <linearGradient id="handSkin" x1="0" y1="88" x2="0" y2="380" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#3d2719" />
-          <stop offset="38%" stopColor="#2e1d15" />
-          <stop offset="72%" stopColor="#20140f" />
-          <stop offset="100%" stopColor="#150d0a" />
+          <stop offset="0%" stopColor="#d99a76" />
+          <stop offset="26%" stopColor="#c08260" />
+          <stop offset="58%" stopColor="#95604a" />
+          <stop offset="82%" stopColor="#6a4335" />
+          <stop offset="100%" stopColor="#42291f" />
+        </linearGradient>
+        {/*
+          Skin is not opaque. Lit from behind it passes red at the thin places,
+          which is the single strongest cue that a shape is a hand and not a
+          moulded part, and it is why the edge here is warm while the sky light
+          on top of it stays cold.
+        */}
+        <radialGradient id="knuckleWarm" cx="152" cy="150" r="98" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffb489" stopOpacity="0.26" />
+          <stop offset="55%" stopColor="#f0946a" stopOpacity="0.11" />
+          <stop offset="100%" stopColor="#e08a5f" stopOpacity="0" />
+        </radialGradient>
+        {/*
+          The wrist fold, fading out at both ends.
+
+          It was a flat stroke of constant width in the same cold blue as the
+          sky edges, running the full width of the arm and stopping dead at each
+          end. That is a panel gap, which is exactly how it read. A crease in
+          skin is darker than the skin around it rather than lighter, it is
+          deepest in the middle, and it has no ends.
+        */}
+        {/*
+          The forearm is a cylinder too, and it was the last flat thing left.
+          The outer edge already catches the sky, so this is the other half:
+          the inner side turning away from it, toward the body and the gap
+          between the arms where no light comes from at all.
+        */}
+        <linearGradient id="armTurn" x1="34" y1="0" x2="192" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#2b1409" stopOpacity="0" />
+          <stop offset="48%" stopColor="#2b1409" stopOpacity="0.1" />
+          <stop offset="100%" stopColor="#2b1409" stopOpacity="0.44" />
+        </linearGradient>
+        <linearGradient id="creaseFade" x1="106" y1="0" x2="168" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#4a2a1e" stopOpacity="0" />
+          <stop offset="30%" stopColor="#4a2a1e" stopOpacity="0.42" />
+          <stop offset="62%" stopColor="#4a2a1e" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#4a2a1e" stopOpacity="0" />
         </linearGradient>
         <radialGradient id="lensGlow">
           <stop offset="35%" stopColor="#7fa6f0" stopOpacity="0.2" />
@@ -491,7 +557,13 @@ export function HandsWithCamera({
         </g>
 
         {/* ---- fingers, in front of the camera and darker for it ---- */}
-        <g fill={HAND_FILL}>
+        {/*
+          A dark edge on each finger, which is contact shadow rather than
+          outline: where two fingers touch, almost no light reaches the seam.
+          Without it four fills of nearly the same value merge into one paddle
+          and only the top highlight tells you how many fingers there are.
+        */}
+        <g fill={HAND_FILL} stroke="#3a2117" strokeOpacity="0.5" strokeWidth="0.9">
           {spines.map((p) => (
             <path key={p.k} d={finger(p.s)} />
           ))}
@@ -585,20 +657,25 @@ export function HandsWithCamera({
                 the silhouette where the tip clears the body.
               */}
               <g clipPath="url(#handClip)">
+                <rect x="0" y="0" width="480" height="380" fill="url(#armTurn)" />
+                <rect x="0" y="0" width="480" height="380" fill="url(#knuckleWarm)" />
                 <path
                   d={WRIST_CREASE}
-                  stroke="#b8d4ff"
-                  strokeOpacity="0.16"
-                  strokeWidth="1.5"
+                  stroke="url(#creaseFade)"
+                  strokeWidth="2.6"
                   strokeLinecap="round"
                 />
               </g>
             </g>
           ))}
 
-          {/* Sky along the top of each finger, and nothing along the bottom. */}
+          {/* Underside first, then the sky on top, so the light wins where they
+              meet at the ends. */}
           {spines.map((p) => (
-            <path key={`${p.k}-lit`} d={fingerLight(p.s)} fill="#b8d4ff" opacity="0.3" />
+            <path key={`${p.k}-shade`} d={fingerShade(p.s)} fill="#40241a" opacity="0.55" />
+          ))}
+          {spines.map((p) => (
+            <path key={`${p.k}-lit`} d={fingerLight(p.s)} fill="#ffd9bd" opacity="0.34" />
           ))}
         </g>
       </g>

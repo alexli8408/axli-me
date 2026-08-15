@@ -60,16 +60,6 @@ const HAND =
   "C 126 350, 132 322, 138 300 " +
   "C 154 272, 170 250, 180 232 L 188 200 L 186 96 Z";
 
-/**
- * Thumb, hooked up out of the heel of the hand. Its tip finishes below the
- * bottom of the camera against open sky, because a thumb drawn entirely inside
- * the palm's own outline changes nothing except where the rim light falls.
- */
-const THUMB =
-  "M 139 230 C 134 219, 140 208, 152 204 C 163 200, 176 201, 184 206 " +
-  "C 189 209, 188 214, 182 216 C 172 219, 158 223, 149 229 " +
-  "C 144 232, 141 233, 139 230 Z";
-
 /** Outer contour of the hand, lit by the sky behind it. */
 /**
  * Follows the hand's own outer edge, all the way to where the hand ends.
@@ -250,70 +240,30 @@ function fingerLight(spine: Spine, weight = 2.4): string {
  *
  * Lengths and spacing both vary. Even bars at even intervals read as a grille.
  */
-const FINGERS = [
-  { y: 107, w: 44, bh: 9.0, th: 5.5, curl: 15, bow: 7, hook: 5 },
-  { y: 133, w: 46, bh: 10.0, th: 6.0, curl: 17, bow: 8, hook: 6 },
-  { y: 157, w: 45, bh: 9.0, th: 5.5, curl: 15, bow: 7, hook: 5 },
-  { y: 178, w: 36, bh: 7.5, th: 4.5, curl: 10, bow: 5, hook: 4 },
-];
-
 /**
- * The right hand is not the left one flipped.
+ * One thumb per hand, and nothing else on the front face.
  *
- * Mirroring a single table gave two hands identical to the pixel, and that is
- * the most machine-looking thing a drawing like this can do: real hands differ
- * from each other, and the eye reads perfect symmetry as manufacture long
- * before it can say why. These are small, a couple of pixels each, applied to
- * the right hand's three wrapping fingers. Fixed numbers rather than anything
- * random, so the drawing is the same every render and stays tunable.
+ * The four fingers that used to curl onto the front were how you hold a games
+ * console, not a camera. Both hands go behind the body, the fingers with them,
+ * and the only thing that comes round to the front is the thumb. Which is also
+ * why this kept reading as a controller however the fingers were drawn: two
+ * symmetric masses of fingers flanking a rounded box is a controller.
+ *
+ * Swept by the same machinery the fingers were, so a thumb still leaves its
+ * base almost straight, curls in the last third, and carries the lit edge
+ * along its top.
  */
-const RIGHT_VARIATION = [
-  { dy: 2.5, dw: -3, dbow: 1, dhook: -1.5 },
-  { dy: 1, dw: 2.5, dbow: -1.5, dhook: 1 },
-  { dy: 3, dw: -2, dbow: 0.5, dhook: 2 },
+const THUMBS: { k: string; s: Spine }[] = [
+  // Left, reaching up and inward across the body.
+  { k: "tl", s: [150, 205, 202, 160, 15.5, 11.0, 5, 2] },
+  // Right, at its own angle and a shade smaller. Two thumbs identical to the
+  // pixel is the same manufactured symmetry the four fingers had.
+  { k: "tr", s: [330, 202, 281, 158, 14.6, 10.4, 4, 3] },
 ];
-
-/** Knuckle bases, level with the body edge so the fingers come from behind it. */
-const LEFT_KNUCKLE = 150;
-const RIGHT_KNUCKLE = 330;
-
-/*
- * There was a fifth finger here, the right index reaching up to the shutter
- * release. It was right about how a camera is held and wrong about what this
- * drawing can show. Seen flat from the front, a finger on the top plate has to
- * be drawn above the body's outline, so it read as a loose shape hovering over
- * the camera rather than a finger resting on a button.
- *
- * Worse, taking that finger off the front face left the right hand with three
- * fingers and a gap where the fourth should be. The two hands stopped matching
- * in the one way that matters, and that gap is what kept reading as broken.
- * Both hands wrap all four now; the release is still drawn on the top plate.
- */
 
 const MIRROR = "translate(480 0) scale(-1 1)";
 /** Same mirror, plus a couple of degrees so the right hand sits at its own angle. */
 const MIRROR_RIGHT = `${MIRROR} rotate(2 168 206)`;
-
-type Variation = (typeof RIGHT_VARIATION)[number];
-
-function spineFor(
-  bx: number,
-  dir: 1 | -1,
-  f: (typeof FINGERS)[number],
-  v?: Variation,
-): Spine {
-  const y = f.y + (v?.dy ?? 0);
-  return [
-    bx,
-    y,
-    bx + dir * (f.w + (v?.dw ?? 0)),
-    y + f.curl,
-    f.bh,
-    f.th,
-    f.bow + (v?.dbow ?? 0),
-    f.hook + (v?.dhook ?? 0),
-  ];
-}
 
 /**
  * Corner marks inside the glass, on the picture.
@@ -345,17 +295,7 @@ export function HandsWithCamera({
   /** The sky measures this to know where to put the picture. */
   lensRef?: React.Ref<SVGCircleElement>;
 }) {
-  const leftWraps = FINGERS;
-  // The right index is on the shutter, so it does not also wrap the edge.
-  const rightWraps = FINGERS.slice(1);
-
-  const spines: { k: string; s: Spine }[] = [
-    ...leftWraps.map((f, i) => ({ k: `l${i}`, s: spineFor(LEFT_KNUCKLE, 1, f) })),
-    ...rightWraps.map((f, i) => ({
-      k: `r${i}`,
-      s: spineFor(RIGHT_KNUCKLE, -1, f, RIGHT_VARIATION[i]),
-    })),
-  ];
+  const spines = THUMBS;
 
   return (
     <svg viewBox="0 0 480 380" className={className} aria-hidden>
@@ -396,7 +336,6 @@ export function HandsWithCamera({
         */}
         <clipPath id="handClip">
           <path d={HAND} />
-          <path d={THUMB} />
         </clipPath>
         <mask id="glassHole">
           <rect x="0" y="0" width="480" height="380" fill="#fff" />
@@ -415,10 +354,8 @@ export function HandsWithCamera({
         {/* ---- hands, behind the camera so the body covers what it should ---- */}
         <g fill={HAND_FILL}>
           <path d={HAND} />
-          <path d={THUMB} />
           <g transform={MIRROR_RIGHT}>
             <path d={HAND} />
-            <path d={THUMB} />
           </g>
         </g>
 

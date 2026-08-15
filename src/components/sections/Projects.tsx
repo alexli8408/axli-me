@@ -1,7 +1,7 @@
 import { projects } from "@/content/resume";
 import { Thumb } from "./Thumb";
 
-/** Name, dates, what it was built with, picture. */
+/** Name, what it is, dates, what it was built with, picture. */
 export function Projects() {
   return (
     <ol className="space-y-9">
@@ -13,10 +13,21 @@ export function Projects() {
               {project.start} – {project.end}
             </span>
           </div>
+          {/* Above the stack, because what a thing does is worth more than what
+              it is made of, and a reader who stops after one line should get
+              the more useful one. */}
+          {project.what ? (
+            <p className="mt-0.5 text-sm text-ember-400">{project.what}</p>
+          ) : null}
           <p className="mt-1 font-mono text-[11px] tracking-[0.06em] text-faint">
             {project.stack.join(" · ")}
           </p>
-          <Thumb src={project.thumb} alt={project.name} href={project.repo} />
+          <Thumb
+            src={project.thumb}
+            alt={project.name}
+            href={project.repo}
+            badge={project.repo ? "View source" : undefined}
+          />
         </li>
       ))}
     </ol>

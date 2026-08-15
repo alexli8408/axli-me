@@ -57,6 +57,14 @@ export type Project = {
   thumb?: string;
   /** The source. Makes the thumbnail a link. */
   repo?: string;
+  /**
+   * What the thing is, in a handful of words.
+   *
+   * The name says nothing on its own and the stack says what it is made of,
+   * neither of which is what it does. Kept to one short line: a paragraph here
+   * is the resume bullets again, and those are one click away.
+   */
+  what?: string;
 };
 
 export const identity = {
@@ -200,6 +208,7 @@ export const roles: Role[] = [
 export const projects: Project[] = [
   {
     id: "quarry",
+    what: "Your Postgres schema, in 3D",
     name: "Quarry",
     stack: ["TypeScript", "React", "Three.js", "Postgres"],
     repo: "https://github.com/alexli8408/quarry",
@@ -214,6 +223,7 @@ export const projects: Project[] = [
   },
   {
     id: "limn",
+    what: "Rough sketches into clean diagrams",
     name: "Limn",
     stack: ["TypeScript", "Next.js", "Supabase", "Postgres", "Python", "FastAPI", "OpenCV", "Gemini"],
     repo: "https://github.com/alexli8408/limn",
@@ -228,6 +238,7 @@ export const projects: Project[] = [
   },
   {
     id: "truelight",
+    what: "Assistive vision for colorblind users",
     repo: "https://github.com/alexli8408/TrueLight",
     name: "TrueLight",
     stack: ["React Native", "Expo", "Next.js", "FastAPI", "YOLOv3", "OpenCV"],

@@ -413,12 +413,30 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
               type="button"
               onClick={toggle}
               aria-pressed={playing}
-              className="radio-card flex w-[15.5rem] flex-col gap-2 rounded-2xl border border-line px-4 pt-3 pb-3 text-left transition-colors duration-500 ease-expo hover:border-line-strong"
+              // Two shapes, not one that reflows. At its full width this is
+              // most of a phone screen, and it sits in the corner where the
+              // last two constellations put their labels, so it was covering
+              // Skills and Contact on every handset size measured. Below sm it
+              // is the control and nothing else: the station name is a nicety,
+              // and a nicety does not get to cover the navigation.
+              className="radio-card grid h-11 w-11 place-items-center rounded-2xl border border-line text-left transition-colors duration-500 ease-expo hover:border-line-strong sm:flex sm:h-auto sm:w-[15.5rem] sm:flex-col sm:gap-2 sm:px-4 sm:pt-3 sm:pb-3"
             >
               <span className="sr-only">
                 {playing ? "Pause" : "Play"} {RADIO.by} {RADIO.title}
               </span>
-              <span aria-hidden className="block">
+              <span aria-hidden className="text-star sm:hidden">
+                {playing ? (
+                  <svg width="11" height="12" viewBox="0 0 11 12" fill="currentColor">
+                    <rect x="0" y="0" width="3.4" height="12" rx="1" />
+                    <rect x="7.6" y="0" width="3.4" height="12" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="11" height="12" viewBox="0 0 11 12" fill="currentColor">
+                    <path d="M1 1.1a1 1 0 0 1 1.5-.9l7 4.9a1 1 0 0 1 0 1.8l-7 4.9A1 1 0 0 1 1 10.9V1.1Z" />
+                  </svg>
+                )}
+              </span>
+              <span aria-hidden className="hidden sm:block">
                 <span className="block font-mono text-[12px] leading-none font-medium tracking-[0.26em] text-star uppercase">
                   {RADIO.title}
                 </span>
@@ -426,7 +444,9 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
                   {RADIO.by}
                 </span>
               </span>
-              <Spectrum playing={playing} />
+              <span aria-hidden className="hidden w-full sm:block">
+                <Spectrum playing={playing} />
+              </span>
             </button>
 
             {/* Sibling, not a child: a link inside a button is not valid, and
@@ -436,7 +456,7 @@ export function Radio({ start, visible }: { start: boolean; visible: boolean }) 
               target="_blank"
               rel="noreferrer noopener"
               aria-label={`Open ${RADIO.title} by ${RADIO.by} on YouTube`}
-              className="radio-badge absolute -right-2 -bottom-2 grid h-9 w-9 place-items-center rounded-full border border-line text-faint transition-colors duration-500 ease-expo hover:border-ember-500/60 hover:text-ember-400"
+              className="radio-badge absolute -right-2 -bottom-2 grid h-7 w-7 place-items-center rounded-full border border-line text-faint sm:h-9 sm:w-9 transition-colors duration-500 ease-expo hover:border-ember-500/60 hover:text-ember-400"
             >
               <svg width="15" height="11" viewBox="0 0 24 17" fill="none" aria-hidden>
                 <path

@@ -112,7 +112,15 @@ function bloomSprites(): HTMLCanvasElement[] {
   });
 }
 
-/** The band's own colours: cold blues through teal, with violet at the edges. */
+/**
+ * The band's own colours.
+ *
+ * Cold blues and teal carry most of it, but not all of it. A band mixed from
+ * one half of the wheel is a single hue with the saturation turned up and
+ * down, and the eye reads that as a gradient rather than as dust and gas at
+ * different temperatures. The rose and the amber are barely present by count
+ * and do most of the work of making it look like a photograph of something.
+ */
 const CLOUD: [number, number, number][] = [
   [38, 78, 178],
   [30, 104, 176],
@@ -120,6 +128,8 @@ const CLOUD: [number, number, number][] = [
   [52, 170, 184],
   [74, 66, 170],
   [122, 68, 156],
+  [178, 88, 146],
+  [198, 138, 88],
 ];
 
 /**
@@ -190,8 +200,14 @@ function paintBackdrop(w: number, h: number, dpr: number, nx: number, ny: number
     blob(p.x, p.y, diag * (0.022 + Math.random() * 0.055), col, 0.06 + core * 0.1);
   }
 
-  // One warm corner, because a sky that is blue everywhere is a gradient.
-  blob(w * 0.94, h * 0.9, diag * 0.28, [188, 132, 74], 0.12);
+  // Colour off the axis too. The band alone left the corners a flat navy, and
+  // what the sky lost when the six old clouds went was not brightness but the
+  // faint pink and amber sitting away from everything else.
+  blob(w * 0.19, h * 0.16, diag * 0.34, [116, 72, 186], 0.08);
+  blob(w * 0.83, h * 0.19, diag * 0.3, [178, 84, 148], 0.062);
+  blob(w * 0.13, h * 0.83, diag * 0.32, [198, 140, 86], 0.058);
+  blob(w * 0.89, h * 0.72, diag * 0.3, [40, 158, 168], 0.062);
+  blob(w * 0.94, h * 0.94, diag * 0.26, [188, 132, 74], 0.1);
 
   // Dust in front, in the colour of the sky behind it.
   b.globalCompositeOperation = "source-over";
@@ -318,10 +334,11 @@ export function StarField({
 
       backdrop = paintBackdrop(w, h, dpr, nx, ny, diag);
 
-      // Far fewer than there used to be, and every one of them bright. The
-      // density now lives in the backdrop, so what is left in the loop is only
-      // the stars big enough that a viewer can actually see them flicker.
-      const count = Math.round((w * h) / 5200);
+      // The backdrop carries the density, so these are only the stars big
+      // enough to see flicker. Cutting them as far as the backdrop allowed was
+      // a mistake: the glow on the bright ones is most of what makes a sky look
+      // like a sky rather than a texture, and they were the first thing missed.
+      const count = Math.round((w * h) / 3600);
       stars = Array.from({ length: count }, () => {
         let x = Math.random() * w;
         let y = Math.random() * h;
@@ -336,11 +353,15 @@ export function StarField({
           y = h / 2 + nx * along + ny * across;
         }
 
-        const depth = Math.random();
+        // A few are simply bigger than the rest. Real fields have a handful of
+        // stars that dominate them, and a set graded evenly from small to large
+        // has no brightest star anywhere in it.
+        const hero = Math.random() < 0.02;
+        const depth = hero ? 0.86 + Math.random() * 0.14 : Math.random();
         return {
           x,
           y,
-          r: 0.45 + depth * 1.45,
+          r: (0.45 + depth * 1.45) * (hero ? 1.35 : 1),
           b: 0.3 + depth * 0.7,
           rate: 0.4 + Math.random() * 1.7,
           phase: Math.random() * Math.PI * 2,
@@ -356,6 +377,8 @@ export function StarField({
         { x: 0.28, y: 0.3, r: 0.46, col: [46, 96, 190], alpha: 0.1, rate: 0.028, phase: 0 },
         { x: 0.66, y: 0.44, r: 0.42, col: [40, 150, 172], alpha: 0.085, rate: 0.022, phase: 2.3 },
         { x: 0.5, y: 0.76, r: 0.4, col: [116, 68, 168], alpha: 0.075, rate: 0.019, phase: 4.6 },
+        { x: 0.78, y: 0.24, r: 0.36, col: [180, 92, 150], alpha: 0.055, rate: 0.024, phase: 1.2 },
+        { x: 0.2, y: 0.68, r: 0.36, col: [196, 140, 88], alpha: 0.045, rate: 0.017, phase: 3.4 },
       ];
     };
 
@@ -420,10 +443,28 @@ export function StarField({
         ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         ctx.fill();
 
-        if (detail && s.depth > 0.8) {
-          const rad = s.r * 9 * keep;
-          ctx.globalAlpha = alpha * 0.3;
+        // Bloom starts low down the range and grows with the star, rather than
+        // being one size for everything above a cutoff: a single threshold makes
+        // two classes of star, one glowing and one not, and the join shows.
+        //
+        // The width matters more than the count. At seven times the core this
+        // was a disc with a dot in it, which is what a light out of focus looks
+        // like; a star is a point that happens to bloom, so the halo is about
+        // three times the core and carries more of its brightness in less room.
+        if (detail && s.depth > 0.68) {
+          const glow = (s.depth - 0.68) / 0.32;
+          const rad = s.r * (2.6 + glow * 2.2) * keep;
+          ctx.globalAlpha = alpha * (0.34 + glow * 0.34);
           ctx.drawImage(blooms[s.col], x - rad, s.y - rad, rad * 2, rad * 2);
+
+          // The hot centre. Sharpness is what the glow cannot supply and what
+          // the eye reads as a star: without a core brighter than the colour
+          // around it, shrinking the halo only makes a smaller smudge.
+          ctx.globalAlpha = Math.min(1, alpha * (0.5 + glow * 0.5));
+          ctx.fillStyle = "#fffdf8";
+          ctx.beginPath();
+          ctx.arc(x, s.y, s.r * 0.5 * keep, 0, Math.PI * 2);
+          ctx.fill();
           ctx.globalAlpha = 1;
         }
       }

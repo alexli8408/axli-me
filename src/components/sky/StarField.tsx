@@ -112,6 +112,119 @@ function bloomSprites(): HTMLCanvasElement[] {
   });
 }
 
+/** The band's own colours: cold blues through teal, with violet at the edges. */
+const CLOUD: [number, number, number][] = [
+  [38, 78, 178],
+  [30, 104, 176],
+  [34, 138, 172],
+  [52, 170, 184],
+  [74, 66, 170],
+  [122, 68, 156],
+];
+
+/**
+ * The galaxy, painted once into its own canvas.
+ *
+ * Every cloud here used to be a createRadialGradient inside the frame loop,
+ * which put a hard ceiling on how many there could be: six, because six was
+ * what the budget allowed, and six soft discs is a wash rather than a galaxy.
+ * None of it moves, so none of it needs to be redrawn. Painted once and
+ * stamped, the count stops mattering and the band can be built the way one
+ * actually looks: a broad haze, brighter knots along its length, and dark
+ * rifts cut back out of it.
+ *
+ * The rifts are the part that reads. A band that only ever adds light is a
+ * smear; what makes it a galaxy is the dust in front of it, which is why these
+ * are drawn over the top in the colour of the empty sky rather than the band
+ * being drawn around them.
+ */
+function paintBackdrop(w: number, h: number, dpr: number, nx: number, ny: number, diag: number) {
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(w * dpr));
+  c.height = Math.max(1, Math.round(h * dpr));
+  const b = c.getContext("2d");
+  if (!b) return c;
+  b.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const ground = b.createLinearGradient(0, h, 0, 0);
+  ground.addColorStop(0, "#070d20");
+  ground.addColorStop(0.55, "#050916");
+  ground.addColorStop(1, "#03060f");
+  b.fillStyle = ground;
+  b.fillRect(0, 0, w, h);
+
+  // A point t along the band's axis, then off across it.
+  const at = (t: number, off: number) => ({
+    x: w / 2 + -ny * t + nx * off,
+    y: h / 2 + nx * t + ny * off,
+  });
+
+  const blob = (x: number, y: number, r: number, col: number[], a: number, soft = 0.45) => {
+    const g = b.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${a})`);
+    g.addColorStop(soft, `rgba(${col[0]}, ${col[1]}, ${col[2]}, ${a * 0.32})`);
+    g.addColorStop(1, `rgba(${col[0]}, ${col[1]}, ${col[2]}, 0)`);
+    b.fillStyle = g;
+    b.beginPath();
+    b.arc(x, y, r, 0, Math.PI * 2);
+    b.fill();
+  };
+
+  const spread = () => ((Math.random() + Math.random() + Math.random()) / 3 - 0.5) * 2;
+
+  b.globalCompositeOperation = "lighter";
+
+  // The haze the whole band sits in.
+  for (let i = 0; i < 30; i++) {
+    const p = at((i / 29 - 0.5) * diag * 1.15, spread() * h * 0.15);
+    blob(p.x, p.y, diag * (0.1 + Math.random() * 0.06), [22, 46, 108], 0.062);
+  }
+
+  // Knots along it. Denser toward the middle, which is where a galactic core
+  // would be, and the reason the band is not the same brightness end to end.
+  for (let i = 0; i < 86; i++) {
+    const t = spread() * diag * 0.62;
+    const p = at(t, spread() * h * 0.22);
+    const col = CLOUD[(Math.random() * CLOUD.length) | 0];
+    const core = 1 - Math.min(1, Math.abs(t) / (diag * 0.5));
+    blob(p.x, p.y, diag * (0.022 + Math.random() * 0.055), col, 0.06 + core * 0.1);
+  }
+
+  // One warm corner, because a sky that is blue everywhere is a gradient.
+  blob(w * 0.94, h * 0.9, diag * 0.28, [188, 132, 74], 0.12);
+
+  // Dust in front, in the colour of the sky behind it.
+  b.globalCompositeOperation = "source-over";
+  for (let i = 0; i < 26; i++) {
+    const t = spread() * diag * 0.66;
+    const p = at(t, spread() * h * 0.2);
+    blob(p.x, p.y, diag * (0.022 + Math.random() * 0.06), [4, 7, 17], 0.4 + Math.random() * 0.32, 0.35);
+  }
+
+  // The faint majority. These never twinkle: they are below the size where a
+  // change in brightness is visible at all, and there are thousands of them,
+  // so they belong in the picture rather than in the loop.
+  const dust = Math.round((w * h) / 380);
+  for (let i = 0; i < dust; i++) {
+    let x = Math.random() * w;
+    let y = Math.random() * h;
+    if (Math.random() < 0.72) {
+      const p = at((Math.random() - 0.5) * diag * 1.1, spread() * h * 0.26);
+      x = p.x;
+      y = p.y;
+    }
+    if (x < -2 || y < -2 || x > w + 2 || y > h + 2) continue;
+    const t = Math.random();
+    const [r, g, bl] = STAR_COLOURS[(Math.random() * STAR_COLOURS.length) | 0];
+    b.fillStyle = `rgba(${r}, ${g}, ${bl}, ${0.12 + t * 0.62})`;
+    b.beginPath();
+    b.arc(x, y, 0.18 + t * 0.5, 0, Math.PI * 2);
+    b.fill();
+  }
+
+  return c;
+}
+
 /**
  * Background sky, and the photograph of it.
  *
@@ -174,6 +287,7 @@ export function StarField({
     let h = 0;
     let diag = 0;
     let stars: FieldStar[] = [];
+    let backdrop: HTMLCanvasElement | null = null;
     let nebulae: Nebula[] = [];
     let shooters: Shooter[] = [];
     let raf = 0;
@@ -202,7 +316,12 @@ export function StarField({
       const nx = Math.sin(bandAngle);
       const ny = -Math.cos(bandAngle);
 
-      const count = Math.round((w * h) / 2100);
+      backdrop = paintBackdrop(w, h, dpr, nx, ny, diag);
+
+      // Far fewer than there used to be, and every one of them bright. The
+      // density now lives in the backdrop, so what is left in the loop is only
+      // the stars big enough that a viewer can actually see them flicker.
+      const count = Math.round((w * h) / 5200);
       stars = Array.from({ length: count }, () => {
         let x = Math.random() * w;
         let y = Math.random() * h;
@@ -221,8 +340,8 @@ export function StarField({
         return {
           x,
           y,
-          r: 0.3 + depth * 1.25,
-          b: 0.16 + depth * 0.74,
+          r: 0.45 + depth * 1.45,
+          b: 0.3 + depth * 0.7,
           rate: 0.4 + Math.random() * 1.7,
           phase: Math.random() * Math.PI * 2,
           depth,
@@ -230,13 +349,13 @@ export function StarField({
         };
       });
 
+      // Three, where there were six, and they are no longer the nebulae: the
+      // band is in the backdrop and cannot move. These are just slow veils
+      // passing over it, so the sky is never quite the same twice.
       nebulae = [
-        { x: 0.22, y: 0.24, r: 0.42, col: [96, 58, 176], alpha: 0.3, rate: 0.05, phase: 0 },
-        { x: 0.7, y: 0.34, r: 0.38, col: [188, 62, 140], alpha: 0.24, rate: 0.04, phase: 1.7 },
-        { x: 0.48, y: 0.52, r: 0.5, col: [40, 96, 190], alpha: 0.26, rate: 0.03, phase: 3.1 },
-        { x: 0.8, y: 0.68, r: 0.34, col: [28, 150, 158], alpha: 0.2, rate: 0.045, phase: 4.4 },
-        { x: 0.16, y: 0.74, r: 0.34, col: [206, 132, 60], alpha: 0.16, rate: 0.035, phase: 5.6 },
-        { x: 0.55, y: 0.14, r: 0.3, col: [150, 70, 200], alpha: 0.18, rate: 0.05, phase: 2.4 },
+        { x: 0.28, y: 0.3, r: 0.46, col: [46, 96, 190], alpha: 0.1, rate: 0.028, phase: 0 },
+        { x: 0.66, y: 0.44, r: 0.42, col: [40, 150, 172], alpha: 0.085, rate: 0.022, phase: 2.3 },
+        { x: 0.5, y: 0.76, r: 0.4, col: [116, 68, 168], alpha: 0.075, rate: 0.019, phase: 4.6 },
       ];
     };
 
@@ -256,14 +375,12 @@ export function StarField({
      */
     const paintSky = (time: number, detail: boolean, meteors: boolean, scale = 1) => {
       const keep = 1 / scale;
-      const base = ctx.createLinearGradient(0, h, 0, 0);
-      base.addColorStop(0, "#0a0f22");
-      base.addColorStop(0.5, "#060a18");
-      base.addColorStop(1, "#03050f");
-      ctx.fillStyle = base;
-      ctx.fillRect(0, 0, w, h);
 
-      // --- nebulae, additive so overlaps brighten ---
+      // The whole galaxy in one stamp: ground, band, dust lanes and the
+      // thousands of faint stars, all of which were fixed the moment the
+      // window stopped resizing.
+      if (backdrop) ctx.drawImage(backdrop, 0, 0, w, h);
+
       ctx.globalCompositeOperation = "lighter";
       for (const n of nebulae) {
         const breathe = reduced ? 1 : 1 + 0.12 * Math.sin(time * n.rate * 6 + n.phase);
